@@ -1,0 +1,76 @@
+# -----------------------------
+# OS / Editor
+# -----------------------------
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+.vscode/
+.idea/
+*.user
+*.suo
+*.tmp
+*.pidb
+*.booproj
+*.svd
+*.pdb
+*.mdb
+
+# -----------------------------
+# Unity (global)
+# -----------------------------
+[Ll]ibrary/
+[Tt]emp/
+[Oo]bj/
+[Bb]uild/
+[Bb]uilds/
+[Ll]ogs/
+UserSettings/
+MemoryCaptures/
+Recordings/
+
+*.csproj
+*.unityproj
+*.sln
+*.slnx
+*.userprefs
+*.pidb.meta
+*.pdb.meta
+*.mdb.meta
+*.opendb
+*.VC.db
+
+# -----------------------------
+# Unity (this repo structure)
+# -----------------------------
+My project/[Ll]ibrary/
+My project/[Tt]emp/
+My project/[Oo]bj/
+My project/[Bb]uild/
+My project/[Bb]uilds/
+My project/[Ll]ogs/
+My project/UserSettings/
+My project/MemoryCaptures/
+My project/Recordings/
+
+# Keep assets, scripts, scenes, packages, project settings.
+!My project/Assets/
+!My project/Packages/
+!My project/ProjectSettings/
+
+# -----------------------------
+# Backend Node/Prisma
+# -----------------------------
+backend/node_modules/
+backend/.env
+backend/.env.*
+!backend/.env.example
+backend/dev.db
+backend/dev.db-journal
+backend/dev.db-shm
+backend/dev.db-wal
+
+# -----------------------------
+# Repo extras (local artifacts)
+# -----------------------------
+*.log
