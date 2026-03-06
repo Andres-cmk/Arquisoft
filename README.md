@@ -45,6 +45,7 @@ PORT=3000
 4. Sincroniza base de datos con Prisma:
 
 ```powershell
+cmd /c npx prisma generate
 cmd /c npx prisma db push
 ```
 
@@ -127,14 +128,36 @@ Ejemplo:
 - Error `The datasource.url property is required in your Prisma config file when using prisma db push`:
   - confirma que existe `backend/.env`.
   - confirma que `DATABASE_URL` esta definida.
-  - ejecuta `cmd /c npx prisma db push` desde `backend`.
+  - ejecuta `cmd /c npx prisma db push` desde `backend` (no desde la raiz del repo).
 
 - Error `Cannot find module 'dotenv/config'`:
   - ejecuta `cmd /c npm.cmd install` en `backend`.
   - si persiste: `cmd /c npm.cmd install dotenv --save`.
+
+- Error `Cannot find module '.prisma/client/default'`:
+  - genera Prisma Client: `cmd /c npx prisma generate`.
+  - luego sincroniza DB: `cmd /c npx prisma db push`.
+  - si persiste, reinstala limpio:
+    - `Remove-Item -Recurse -Force node_modules`
+    - `Remove-Item -Force package-lock.json`
+    - `cmd /c npm.cmd install`
+    - `cmd /c npx prisma generate`
+    - `cmd /c npx prisma db push`
+    - `cmd /c npm.cmd run start`
 
 - `Error interno del servidor` al registrar:
   ejecuta de nuevo `cmd /c npx prisma db push`.
 
 - `Token invalido o expirado` en `/auth/me`:
   vuelve a hacer login y usa el token nuevo.
+
+## Recuperacion rapida backend (copy/paste)
+
+Si vienes de varios errores de entorno, ejecuta esto dentro de `backend`:
+
+```powershell
+cmd /c npm.cmd install
+cmd /c npx prisma generate
+cmd /c npx prisma db push
+cmd /c npm.cmd run start
+```
