@@ -23,6 +23,8 @@ public class abr : MonoBehaviour
     private Vector3 movement;
     private bool hasMoveOrder;
     private Vector3 moveTarget;
+    private ResourceNode resourceTarget;
+    private bool resourceActionPending;
     private float previousDistanceToTarget = -1f;
     private float stuckTimer;
     private NavMeshAgent navMesh;
@@ -32,8 +34,8 @@ public class abr : MonoBehaviour
         rb = GetComponent<Rigidbody>();
         anim = GetComponent<Animator>();           
         spriteRenderer = GetComponent<SpriteRenderer>();
-        navMesh = GetComponent<NavMeshAgent>();
 
+        navMesh = GetComponent<NavMeshAgent>();
         navMesh.speed = speed;
 
         if (rb == null)
@@ -86,6 +88,12 @@ public class abr : MonoBehaviour
 
             if (toTarget.sqrMagnitude <= stoppingDistance * stoppingDistance)
             {
+                if (resourceTarget != null && resourceActionPending)
+                {
+                    resourceActionPending = false;
+                    resourceTarget.FarmResource();
+                    Debug.Log($"<color=yellow>[UNIDAD]</color> {name} ha llegado a {resourceTarget.name} y comienza a recolectar.");
+                }
                 CancelMoveOrder();
             }
             else
@@ -114,6 +122,9 @@ public class abr : MonoBehaviour
         {
             UpdateFacing(movement);
         }
+
+
+        CheckArrival();
     }
 
     void FixedUpdate()
@@ -125,13 +136,12 @@ public class abr : MonoBehaviour
         }
     }
 
-    public void SetMoveTarget(Vector3 target)
+    public void SetMoveTarget(Vector3 target, ResourceNode targetResource = null)
     {
         moveTarget = target;
-        //moveTarget.y = rb != null ? rb.position.y : transform.position.y;
-        //hasMoveOrder = true;
-        //previousDistanceToTarget = -1f;
-        //stuckTimer = 0f;
+        resourceTarget = targetResource;
+        resourceActionPending = targetResource != null;
+
         if(navMesh == null)
         {
             Debug.LogWarning($"[UNIDAD] {name} no tiene NavMeshAgent. No se puede ejecutar orden de movimiento.");
@@ -139,16 +149,36 @@ public class abr : MonoBehaviour
         }
         else
         {
-            hasMoveOrder = true;
             navMesh.SetDestination(moveTarget);
-            Debug.Log($"Unidad moviendose a {moveTarget}");
+            hasMoveOrder = true;
+            previousDistanceToTarget = -1f;
+            stuckTimer = 0f;
+            Debug.Log($"Unidad moviendose a {moveTarget} {(resourceTarget != null ? "para recolectar recurso" : "")}.");
         }
+    }
+
+    public bool CheckArrival()
+    {
+        if (!navMesh.pathPending && navMesh.remainingDistance <= 2f)
+        {
+            Debug.Log("Está dentro del rango deseado");
+            if (resourceTarget != null && resourceActionPending)
+            {
+                resourceActionPending = false;
+                resourceTarget.FarmResource();
+                Debug.Log($"<color=yellow>[UNIDAD]</color> {name} ha llegado a {resourceTarget.name} y comienza a recolectar.");
+            }
+            return true;
+        }
+        return false;
     }
 
     private void CancelMoveOrder()
     {
         movement = Vector3.zero;
         hasMoveOrder = false;
+        resourceTarget = null;
+        resourceActionPending = false;
         previousDistanceToTarget = -1f;
         stuckTimer = 0f;
     }
