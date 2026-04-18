@@ -1,4 +1,6 @@
 using UnityEngine;
+using UnityEngine.AI;
+
 
 public class abr : MonoBehaviour
 {
@@ -23,12 +25,16 @@ public class abr : MonoBehaviour
     private Vector3 moveTarget;
     private float previousDistanceToTarget = -1f;
     private float stuckTimer;
+    private NavMeshAgent navMesh;
 
     void Start()
     {
         rb = GetComponent<Rigidbody>();
         anim = GetComponent<Animator>();           
         spriteRenderer = GetComponent<SpriteRenderer>();
+        navMesh = GetComponent<NavMeshAgent>();
+
+        navMesh.speed = speed;
 
         if (rb == null)
         {
@@ -122,10 +128,21 @@ public class abr : MonoBehaviour
     public void SetMoveTarget(Vector3 target)
     {
         moveTarget = target;
-        moveTarget.y = rb != null ? rb.position.y : transform.position.y;
-        hasMoveOrder = true;
-        previousDistanceToTarget = -1f;
-        stuckTimer = 0f;
+        //moveTarget.y = rb != null ? rb.position.y : transform.position.y;
+        //hasMoveOrder = true;
+        //previousDistanceToTarget = -1f;
+        //stuckTimer = 0f;
+        if(navMesh == null)
+        {
+            Debug.LogWarning($"[UNIDAD] {name} no tiene NavMeshAgent. No se puede ejecutar orden de movimiento.");
+            return;
+        }
+        else
+        {
+            hasMoveOrder = true;
+            navMesh.SetDestination(moveTarget);
+            Debug.Log($"Unidad moviendose a {moveTarget}");
+        }
     }
 
     private void CancelMoveOrder()
