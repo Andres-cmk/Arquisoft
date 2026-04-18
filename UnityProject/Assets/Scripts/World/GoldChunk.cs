@@ -28,4 +28,10 @@ public class GoldChunk : MonoBehaviour
         }
         resourceNode.resourceType = ResourceNode.ResourceType.Gold;
     }
+
+    public void Mine()
+    {
+        gold_full.SetActive(false);
+        gold_mined.SetActive(true);        
+    }
 }

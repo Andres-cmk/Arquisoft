@@ -28,4 +28,10 @@ public class ForestChunk : MonoBehaviour
         }
         resourceNode.resourceType = ResourceNode.ResourceType.Wood;
     }
+
+    public void Cut()
+    {
+        forest_full.SetActive(false);
+        forest_cut.SetActive(true);
+    }
 }
