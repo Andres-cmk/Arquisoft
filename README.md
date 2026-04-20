@@ -1,163 +1,172 @@
-# Prototype1 - Login con API (Windows)
+# RTS ArquiSoft — Monolith
 
-Repositorio con cliente Unity y backend Node.js/Express + Prisma (SQLite).
+Backend del juego construido con FastAPI y PostgreSQL, contenerizado con Docker.
 
-## Estructura
-
-- `My project/`: cliente Unity.
-- `backend/`: API de autenticacion.
+---
 
 ## Requisitos
 
-- Windows 10/11
-- PowerShell
-- Node.js 18+ (incluye `npm`)
-- Unity Hub + version de Unity del proyecto
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/)
 
-## Backend desde cero (solo clonando el repo)
+---
 
-1. Clona el repositorio y entra a la carpeta `backend`:
+## Configuración inicial
 
-```powershell
-cd "<ruta-del-repo>\backend"
+
+### 1. Crear el archivo `.env`
+
+Copia el archivo de ejemplo y rellena los valores:
+
+```bash
+cp .env.example .env
 ```
 
-2. Instala dependencias:
+El `.env` debe quedar así:
 
-```powershell
-cmd /c npm.cmd install
+```
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=admin
+POSTGRES_DB=arqui
+DATABASE_URL=postgresql://postgres:admin@db:5432/arqui
 ```
 
-3. Crea el archivo `.env` (si no existe):
+> **Nota:** No cambies `@db` por `@localhost`. Dentro de Docker, `db` es el nombre del contenedor de la base de datos.
 
-```powershell
-Copy-Item .env.example .env
+---
+
+## Levantar el proyecto
+
+```bash
+docker-compose up --build
 ```
 
-Si `Copy-Item` falla por no existir `.env.example`, crea `.env` manual con:
+Esto levanta dos contenedores:
+- `monolith-api-1` — la API de FastAPI en el puerto `8000`
+- `monolith-db-1` — PostgreSQL en el puerto `5432`
 
-```env
-DATABASE_URL="file:./dev.db"
-JWT_SECRET="cambia_esto_por_un_secreto_largo"
-PORT=3000
+Para correrlo en segundo plano:
+
+```bash
+docker compose up --build -d
 ```
 
-4. Sincroniza base de datos con Prisma:
+Para detenerlo:
 
-```powershell
-cmd /c npx prisma generate
-cmd /c npx prisma db push
+```bash
+docker compose down
 ```
 
-5. Inicia el backend:
+---
 
-```powershell
-cmd /c npm.cmd run start
+## Verificar que funciona
+
+### API
+
+Abre en el navegador:
+
+```
+http://localhost:8000/docs
 ```
 
-Debe quedar corriendo en `http://localhost:3000`.
+Deberías ver la documentación interactiva de FastAPI con los endpoints disponibles.
 
-## Probar API rapido desde terminal
+### Endpoints disponibles
 
-Abre otra ventana de PowerShell (deja backend corriendo en la primera).
+| Método | Ruta | Descripción |
+|--------|------|-------------|
+| `POST` | `/auth/users` | Crear un usuario |
+| `POST` | `/auth/login` | Iniciar sesión |
+| `GET` | `/home` | Página de registro |
 
-### Registro
+---
 
-```powershell
-Invoke-RestMethod -Method Post -Uri 'http://localhost:3000/auth/register' -ContentType 'application/json' -Body '{"username":"user_test_1","password":"123456"}'
-```
+## Probar con Postman
 
-Si ese usuario ya existe, cambia `user_test_1` por otro nombre.
+### Crear usuario
 
-### Login
-
-```powershell
-$login = Invoke-RestMethod -Method Post -Uri 'http://localhost:3000/auth/login' -ContentType 'application/json' -Body '{"username":"user_test_1","password":"123456"}'
-$login.accessToken
-```
-
-Debe imprimir un JWT.
-
-### Validar token (`/auth/me`)
-
-```powershell
-Invoke-RestMethod -Method Get -Uri 'http://localhost:3000/auth/me' -Headers @{ Authorization = "Bearer $($login.accessToken)" }
-```
-
-Esperado: `success: true` y `user` con `id` y `username`.
-
-## Probar flujo en Unity
-
-1. Abre el proyecto `My project` en Unity.
-2. Abre `LoginScene`.
-3. Selecciona el GameObject con `LoginController`.
-4. En Inspector, confirma que `loginButton` esta asignado.
-5. Presiona Play.
-6. Haz login con un usuario valido.
-7. Verifica que entra a `MainMenuScene`.
-8. Entra a `GameScene` y valida:
-   - Si hay token valido y `/auth/me` responde 200, permanece en `GameScene`.
-   - Si no hay token o es invalido, `GameSessionGuard` redirige a `LoginScene`.
-
-## Validar seguridad minima
-
-- Backend no devuelve `passwordHash` ni `salt` al cliente en respuestas de auth.
-- Cliente no persiste contrasena en sesion; solo usa `CurrentUser` y `AccessToken`.
-- Para produccion, usa `https://` en la API.
-- En desarrollo local se permite `http://localhost` por conveniencia.
-
-## Resultado esperado del smoke test
-
-Flujo completo de backend:
-
-- `register` -> `success: true`
-- `login` -> `success: true` + `accessToken`
-- `/auth/me` con Bearer token -> `success: true`
-
-Ejemplo:
+- **Método:** `POST`
+- **URL:** `http://localhost:8000/auth/users`
+- **Body (JSON):**
 
 ```json
-{"RegisteredSuccess":true,"LoginSuccess":true,"HasAccessToken":true,"MeSuccess":true}
+{
+    "username": "testuser",
+    "password": "123456"
+}
 ```
 
-## Troubleshooting
+### Iniciar sesión
 
-- Error `npm.ps1 cannot be loaded because running scripts is disabled`:
-  usa `cmd /c npm.cmd ...` como en este README.
+- **Método:** `POST`
+- **URL:** `http://localhost:8000/auth/login`
+- **Body (JSON):**
 
-- Error `The datasource.url property is required in your Prisma config file when using prisma db push`:
-  - confirma que existe `backend/.env`.
-  - confirma que `DATABASE_URL` esta definida.
-  - ejecuta `cmd /c npx prisma db push` desde `backend` (no desde la raiz del repo).
+```json
+{
+    "username": "testuser",
+    "password": "123456"
+}
+```
 
-- Error `Cannot find module 'dotenv/config'`:
-  - ejecuta `cmd /c npm.cmd install` en `backend`.
-  - si persiste: `cmd /c npm.cmd install dotenv --save`.
+---
 
-- Error `Cannot find module '.prisma/client/default'`:
-  - genera Prisma Client: `cmd /c npx prisma generate`.
-  - luego sincroniza DB: `cmd /c npx prisma db push`.
-  - si persiste, reinstala limpio:
-    - `Remove-Item -Recurse -Force node_modules`
-    - `Remove-Item -Force package-lock.json`
-    - `cmd /c npm.cmd install`
-    - `cmd /c npx prisma generate`
-    - `cmd /c npx prisma db push`
-    - `cmd /c npm.cmd run start`
+## Verificar la base de datos
 
-- `Error interno del servidor` al registrar:
-  ejecuta de nuevo `cmd /c npx prisma db push`.
+Para conectarte a la base de datos del contenedor y revisar los datos:
 
-- `Token invalido o expirado` en `/auth/me`:
-  vuelve a hacer login y usa el token nuevo.
+```bash
+docker exec -it monolith-db-1 psql -U postgres -d arqui
+```
 
-## Recuperacion rapida backend (copy/paste)
+Comandos útiles dentro de psql:
 
-Si vienes de varios errores de entorno, ejecuta esto dentro de `backend`:
+```sql
+-- Ver las tablas creadas
+\dt
 
-```powershell
-cmd /c npm.cmd install
-cmd /c npx prisma generate
-cmd /c npx prisma db push
-cmd /c npm.cmd run start
+-- Ver los usuarios registrados
+SELECT * FROM users;
+
+-- Salir
+\q
+```
+
+---
+
+## Conexión desde Unity
+
+La URL base para conectarse desde Unity es:
+
+```
+http://localhost:8000
+```
+
+No es necesario cambiar nada mientras se desarrolle en la misma máquina. Al desplegar en un servidor, reemplazar `localhost` por la IP o dominio del servidor.
+
+---
+
+## Estructura del proyecto
+
+```
+Monolith/
+├── app/
+│   ├── connections/
+│   │   └── postgresql_connection.py
+│   ├── models/
+│   │   └── user.py
+│   ├── routers/
+│   │   └── auth.py
+│   ├── schemas/
+│   │   └── user_schemas.py
+│   └── main.py
+├── static/
+│   └── styles.css
+├── templates/
+│   └── home.html
+├── .env               # No subir al repositorio
+├── .env.example
+├── .gitignore
+├── docker-compose.yml
+├── Dockerfile
+└── requirements.txt
 ```
