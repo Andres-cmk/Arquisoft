@@ -9,6 +9,7 @@ public class ApiClient : MonoBehaviour
     [Header("FastAPI")]
     [SerializeField] string baseUrl = "http://127.0.0.1:8000";
     [SerializeField] string loginEndpoint = "/auth/login";
+    [SerializeField] string sessionSummaryEndpoint = "/match/session-summary";
 
     public static ApiClient Instance { get; private set; }
     public bool IsAuthenticated => isLoggedIn;
@@ -63,6 +64,37 @@ public class ApiClient : MonoBehaviour
         StartCoroutine(LoginCoroutine(username, password, onSuccess, onError));
     }
 
+    public void SendSessionSummary(GameSessionStats.SessionSummaryPayload payload, Action<string> onSuccess, Action<string> onError)
+    {
+        if (payload == null)
+        {
+            onError?.Invoke("Payload de sesion vacio.");
+            return;
+        }
+
+        if (!isLoggedIn)
+        {
+            onError?.Invoke("No autenticado.");
+            return;
+        }
+
+        StartCoroutine(PostJsonCoroutine(sessionSummaryEndpoint, payload,
+            onSuccess: text =>
+            {
+                string message = "Sesion enviada.";
+                if (!string.IsNullOrEmpty(text))
+                {
+                    message = text;
+                }
+
+                onSuccess?.Invoke(message);
+            },
+            onError: err =>
+            {
+                onError?.Invoke(err);
+            }));
+    }
+
     public IEnumerator LoginCoroutine(string username, string password, Action<LoginResponse> onSuccess, Action<string> onError)
     {
         if (string.IsNullOrEmpty(username) || string.IsNullOrEmpty(password))
@@ -72,39 +104,31 @@ public class ApiClient : MonoBehaviour
         }
 
         LoginRequest payload = new LoginRequest { username = username, password = password };
-        string json = JsonUtility.ToJson(payload);
-        UnityWebRequest request = new UnityWebRequest(BuildUrl(loginEndpoint), UnityWebRequest.kHttpVerbPOST);
-        request.uploadHandler = new UploadHandlerRaw(Encoding.UTF8.GetBytes(json));
-        request.downloadHandler = new DownloadHandlerBuffer();
-        request.SetRequestHeader("Content-Type", "application/json");
-        request.timeout = 10;
+        LoginResponse response = null;
+        string requestError = null;
 
-        yield return request.SendWebRequest();
+        yield return PostJsonCoroutine(loginEndpoint, payload,
+            onSuccess: text =>
+            {
+                response = JsonUtility.FromJson<LoginResponse>(text);
+            },
+            onError: err =>
+            {
+                requestError = err;
+            });
 
-        if (request.result != UnityWebRequest.Result.Success || request.responseCode >= 400)
+        if (!string.IsNullOrEmpty(requestError))
         {
-            string backendMessage = request.downloadHandler != null ? request.downloadHandler.text : string.Empty;
-            if (!string.IsNullOrEmpty(backendMessage))
-            {
-                onError?.Invoke(backendMessage);
-            }
-            else
-            {
-                onError?.Invoke(string.IsNullOrEmpty(request.error) ? "No se pudo iniciar sesion." : request.error);
-            }
-
-            request.Dispose();
+            onError?.Invoke(requestError);
             yield break;
         }
 
-        LoginResponse response = JsonUtility.FromJson<LoginResponse>(request.downloadHandler.text);
         if (response == null || string.IsNullOrEmpty(response.message))
             response = new LoginResponse { message = "Login successful" };
 
         isLoggedIn = true;
 
         onSuccess?.Invoke(response);
-        request.Dispose();
     }
 
     public void Logout()
@@ -117,5 +141,38 @@ public class ApiClient : MonoBehaviour
         string cleanBase = baseUrl.TrimEnd('/');
         string cleanEndpoint = endpoint.StartsWith("/") ? endpoint : "/" + endpoint;
         return cleanBase + cleanEndpoint;
+    }
+
+    IEnumerator PostJsonCoroutine<T>(string endpoint, T payload, Action<string> onSuccess, Action<string> onError)
+    {
+        string json = JsonUtility.ToJson(payload);
+        UnityWebRequest request = new UnityWebRequest(BuildUrl(endpoint), UnityWebRequest.kHttpVerbPOST);
+        request.uploadHandler = new UploadHandlerRaw(Encoding.UTF8.GetBytes(json));
+        request.downloadHandler = new DownloadHandlerBuffer();
+        request.SetRequestHeader("Content-Type", "application/json");
+        request.timeout = 10;
+
+        yield return request.SendWebRequest();
+
+        bool hasError = request.result != UnityWebRequest.Result.Success || request.responseCode >= 400;
+        if (hasError)
+        {
+            string backendMessage = request.downloadHandler != null ? request.downloadHandler.text : string.Empty;
+            if (!string.IsNullOrEmpty(backendMessage))
+            {
+                onError?.Invoke(backendMessage);
+            }
+            else
+            {
+                onError?.Invoke(string.IsNullOrEmpty(request.error) ? "Request failed." : request.error);
+            }
+
+            request.Dispose();
+            yield break;
+        }
+
+        string responseText = request.downloadHandler != null ? request.downloadHandler.text : string.Empty;
+        onSuccess?.Invoke(responseText);
+        request.Dispose();
     }
 }

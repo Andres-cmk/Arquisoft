@@ -19,6 +19,7 @@ public class ResourceNode : MonoBehaviour
     [Header("Resource")]
     public ResourceType resourceType = ResourceType.Wood;
     public ResourceState resourceState = ResourceState.Available;
+    [Min(0)] public int gatherAmount = 10;
 
     public string GetActionName()
     {
@@ -27,13 +28,22 @@ public class ResourceNode : MonoBehaviour
 
     public void FarmResource()
     {
+        if (resourceState == ResourceState.Depleted)
+        {
+            Debug.Log($"<color=orange>[RECURSO]</color> {name} ya estaba agotado. Se ignora la accion.");
+            return;
+        }
+
+        bool gathered = false;
+
         switch(resourceType){
             case ResourceType.Wood:
                 ForestChunk forest = GetComponent<ForestChunk>();
                 if(forest != null)
                 {
                     forest.Cut();
-                    Debug.Log($"<color=cyan>[RECURSO]</color> Recurso {forest} fue {GetActionName()} + X Cantidad de Madera.");
+                    gathered = true;
+                    Debug.Log($"<color=cyan>[RECURSO]</color> Recurso {forest} fue {GetActionName()} + {gatherAmount} Madera.");
                 }
                 break;
             case ResourceType.Gold:
@@ -41,10 +51,17 @@ public class ResourceNode : MonoBehaviour
                 if(gold != null)
                 {
                     gold.Mine();
-                    Debug.Log($"<color=cyan>[RECURSO]</color> Recurso {gold} fue {GetActionName()} + X Cantidad de Oro.");
+                    gathered = true;
+                    Debug.Log($"<color=cyan>[RECURSO]</color> Recurso {gold} fue {GetActionName()} + {gatherAmount} Oro.");
                 }
                 break;
         }
+
+        if (gathered)
+        {
+            GameSessionStats.GetOrCreate().RecordGather(resourceType, gatherAmount, name);
+        }
+
         resourceState = ResourceState.Depleted;
     }
 }
