@@ -1,5 +1,8 @@
 using UnityEngine;
 
+using Unity.AI.Navigation;
+using UnityEngine.AI;
+
 public class MapGenerator : MonoBehaviour
 {
     public GameObject grass_chunk;
@@ -39,9 +42,11 @@ public class MapGenerator : MonoBehaviour
                 } else if (goldNoiseValue < 0.15f)
                 {
                     GameObject gold = Instantiate(gold_chunk, pos, Quaternion.identity);
-                }
+                }                
 
             }
         }
+
+        GetComponent<NavMeshSurface>().BuildNavMesh();
     }
 }

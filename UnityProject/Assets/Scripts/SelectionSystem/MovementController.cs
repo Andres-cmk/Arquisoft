@@ -1,6 +1,7 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
 
+
 public class MovementController : MonoBehaviour
 {
     private Camera cam;
@@ -44,6 +45,7 @@ public class MovementController : MonoBehaviour
             else if (mouse.rightButton.isPressed)
                 EjecutarOrden3D(true);
         }
+
     }
 
     void EjecutarOrden3D(bool clicMantenido)
@@ -114,14 +116,24 @@ public class MovementController : MonoBehaviour
             else if (objetivoPrioritario.Category == SelectableEntity.SelectableCategory.Resource)
             {
                 ResourceNode resource = objetivoPrioritario.GetComponent<ResourceNode>();
-                string action = resource != null ? resource.GetActionName() : "RECOLECTAR";
-                Debug.Log($"<color=yellow>[ACTION]</color> Orden directa: {action} en {objetivoPrioritario.name}.");
+
+                if(resource.resourceState == ResourceNode.ResourceState.Available){
+                    string action = resource != null ? resource.GetActionName() : "RECOLECTAR";
+                    Debug.Log($"<color=yellow>[ACTION]</color> Orden directa: {action} en {objetivoPrioritario.name}.");
+
+                    int movedUnits = OrdenarMovimientoUnidades(puntoDestino, resource);
+                    Debug.Log($"<color=cyan>[MOVIMIENTO]</color> Acción de movimiento para {movedUnits} unidades hacia {puntoDestino}");
+                }
+                else{
+                    Debug.Log($"<color=orange>[AVISO]</color> El recurso {objetivoPrioritario.name} ya está agotado.");
+                }
             }
         }
     }
 
-    private int OrdenarMovimientoUnidades(Vector3 destino)
+    private int OrdenarMovimientoUnidades(Vector3 destino, ResourceNode resourceTarget = null)
     {
+
         if (selectionSystem == null) return 0;
 
         int movedCount = 0;
@@ -141,7 +153,7 @@ public class MovementController : MonoBehaviour
 
             if (unitMovement != null)
             {
-                unitMovement.SetMoveTarget(destino);
+                unitMovement.SetMoveTarget(destino, resourceTarget);
                 movedCount++;
             }
         }
