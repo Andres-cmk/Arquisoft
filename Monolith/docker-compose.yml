@@ -6,7 +6,7 @@ services:
     ports:
       - "5432:5432"
 
-  api:
+  monolith:
     build: .
     ports:
       - "8000:8000"
