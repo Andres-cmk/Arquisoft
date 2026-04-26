@@ -1,172 +1,47 @@
-# RTS ArquiSoft — Monolith
+# RTS ArquiSoft
 
-Backend del juego construido con FastAPI y PostgreSQL, contenerizado con Docker.
+Proyecto RTS en Unity con backend FastAPI separado por servicios.
 
----
+## Estructura actual
 
-## Requisitos
+```text
+backend/
+  support-service/       # Autenticacion, usuarios, Firebase y resumenes
+  matchmaking-service/   # Cola, ready state y metadata Relay/Lobby
+  shared/                # CORS, seguridad, conexiones y modelos comunes
+UnityProject/
+  Assets/Scripts/
+    Support/             # Cliente de support y estado de sesion autenticada
+    Multiplayer/         # Cliente y runtime multiplayer en Unity
+```
 
-- [Docker Desktop](https://www.docker.com/products/docker-desktop/)
+Servicios backend:
 
----
+- `support`: `http://localhost:8000`
+- `matchmaking`: `http://localhost:8001`
 
-## Configuración inicial
-
-
-### 1. Crear el archivo `.env`
-
-Copia el archivo de ejemplo y rellena los valores:
+Para ejecutar:
 
 ```bash
-cp .env.example .env
+cd backend
+docker compose up --build
 ```
 
-El `.env` debe quedar así:
+Unity usa `ApiClient` para login/resumenes, `MatchmakingClient` para cola y ready state, y `RelayLobbyClient` para crear/unirse a sesiones de Unity Multiplayer Services con Relay.
 
-```
-POSTGRES_USER=postgres
-POSTGRES_PASSWORD=admin
-POSTGRES_DB=arqui
-DATABASE_URL=postgresql://postgres:admin@db:5432/arqui
-```
+## Multiplayer fase 2
 
-> **Nota:** No cambies `@db` por `@localhost`. Dentro de Docker, `db` es el nombre del contenedor de la base de datos.
+La segunda fase agrega una primera capa host-authoritative para gameplay:
 
----
+- `RtsNetworkCommandBus`: bus de comandos sobre Netcode custom messages.
+- `RtsNetworkEntity`: identidad local estable para unidades, edificios y recursos.
+- `RtsMultiplayerWorldInitializer`: crea bases iniciales por jugador en zonas libres.
+- Movimiento, recoleccion y produccion pasan por el host cuando hay sesion multiplayer activa.
 
-## Levantar el proyecto
+Fuera de una sesion multiplayer, los scripts mantienen el flujo singleplayer anterior.
 
-```bash
-docker-compose up --build
-```
+Limitaciones actuales:
 
-Esto levanta dos contenedores:
-- `monolith-api-1` — la API de FastAPI en el puerto `8000`
-- `monolith-db-1` — PostgreSQL en el puerto `5432`
-
-Para correrlo en segundo plano:
-
-```bash
-docker compose up --build -d
-```
-
-Para detenerlo:
-
-```bash
-docker compose down
-```
-
----
-
-## Verificar que funciona
-
-### API
-
-Abre en el navegador:
-
-```
-http://localhost:8000/docs
-```
-
-Deberías ver la documentación interactiva de FastAPI con los endpoints disponibles.
-
-### Endpoints disponibles
-
-| Método | Ruta | Descripción |
-|--------|------|-------------|
-| `POST` | `/auth/users` | Crear un usuario |
-| `POST` | `/auth/login` | Iniciar sesión |
-| `GET` | `/home` | Página de registro |
-
----
-
-## Probar con Postman
-
-### Crear usuario
-
-- **Método:** `POST`
-- **URL:** `http://localhost:8000/auth/users`
-- **Body (JSON):**
-
-```json
-{
-    "username": "testuser",
-    "password": "123456"
-}
-```
-
-### Iniciar sesión
-
-- **Método:** `POST`
-- **URL:** `http://localhost:8000/auth/login`
-- **Body (JSON):**
-
-```json
-{
-    "username": "testuser",
-    "password": "123456"
-}
-```
-
----
-
-## Verificar la base de datos
-
-Para conectarte a la base de datos del contenedor y revisar los datos:
-
-```bash
-docker exec -it monolith-db-1 psql -U postgres -d arqui
-```
-
-Comandos útiles dentro de psql:
-
-```sql
--- Ver las tablas creadas
-\dt
-
--- Ver los usuarios registrados
-SELECT * FROM users;
-
--- Salir
-\q
-```
-
----
-
-## Conexión desde Unity
-
-La URL base para conectarse desde Unity es:
-
-```
-http://localhost:8000
-```
-
-No es necesario cambiar nada mientras se desarrolle en la misma máquina. Al desplegar en un servidor, reemplazar `localhost` por la IP o dominio del servidor.
-
----
-
-## Estructura del proyecto
-
-```
-Monolith/
-├── app/
-│   ├── connections/
-│   │   └── postgresql_connection.py
-│   ├── models/
-│   │   └── user.py
-│   ├── routers/
-│   │   └── auth.py
-│   ├── schemas/
-│   │   └── user_schemas.py
-│   └── main.py
-├── static/
-│   └── styles.css
-├── templates/
-│   └── home.html
-├── .env               # No subir al repositorio
-├── .env.example
-├── .gitignore
-├── docker-compose.yml
-├── Dockerfile
-└── requirements.txt
-```
+- Combate y fog of war siguen fuera de multiplayer.
+- Las entidades no son todavia `NetworkObject` individuales; se sincronizan por comandos e IDs deterministas.
+- El host es autoridad total y si se cae la partida no migra de host.

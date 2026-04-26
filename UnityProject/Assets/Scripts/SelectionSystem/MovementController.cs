@@ -136,6 +136,12 @@ public class MovementController : MonoBehaviour
 
         if (selectionSystem == null) return 0;
 
+        if (RtsNetworkCommandBus.IsMultiplayerActive)
+        {
+            bool handledByNetwork = RtsNetworkCommandBus.GetOrCreate().RequestMoveSelectedUnits(selectionSystem.selectedUnits, destino, resourceTarget);
+            return handledByNetwork ? selectionSystem.selectedUnits.Count : 0;
+        }
+
         int movedCount = 0;
 
         foreach (GameObject selected in selectionSystem.selectedUnits)

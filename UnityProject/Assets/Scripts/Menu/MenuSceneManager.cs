@@ -5,8 +5,8 @@ using TMPro;
 public class MenuSceneManager : MonoBehaviour
 {
     [Header("Scenes")]
-    [SerializeField] string loginSceneName = "Login";
-    [SerializeField] string worldGenerationSceneName = "WorldGeneration";
+    [SerializeField] string loginSceneName = "LoginScene";
+    [SerializeField] string worldGenerationSceneName = "MapGeneratorScene";
 
     [Header("UI")]
     [SerializeField] TMP_Text statusText;
@@ -25,6 +25,19 @@ public class MenuSceneManager : MonoBehaviour
     public void OnLoginPressed()
     {
         LoadScene(loginSceneName);
+    }
+
+    public void OnMultiplayerPressed()
+    {
+        if (!AuthSession.IsAuthenticated)
+        {
+            SetStatus("Debes iniciar sesion para jugar multiplayer.");
+            return;
+        }
+
+        MultiplayerBootstrap bootstrap = MultiplayerBootstrap.GetOrCreate();
+        bootstrap.FindMatch();
+        SetStatus("Buscando partida multiplayer...");
     }
 
     public void OnBackPressed()

@@ -91,7 +91,7 @@ public class abr : MonoBehaviour
                 if (resourceTarget != null && resourceActionPending)
                 {
                     resourceActionPending = false;
-                    resourceTarget.FarmResource();
+                    CompleteResourceAction();
                     Debug.Log($"<color=yellow>[UNIDAD]</color> {name} ha llegado a {resourceTarget.name} y comienza a recolectar.");
                 }
                 CancelMoveOrder();
@@ -138,6 +138,20 @@ public class abr : MonoBehaviour
 
     public void SetMoveTarget(Vector3 target, ResourceNode targetResource = null)
     {
+        if (RtsNetworkCommandBus.IsMultiplayerActive)
+        {
+            RtsNetworkCommandBus.GetOrCreate().RequestMoveSelectedUnits(
+                new System.Collections.Generic.List<GameObject> { gameObject },
+                target,
+                targetResource);
+            return;
+        }
+
+        SetMoveTargetFromNetwork(target, targetResource);
+    }
+
+    public void SetMoveTargetFromNetwork(Vector3 target, ResourceNode targetResource = null)
+    {
         moveTarget = target;
         resourceTarget = targetResource;
         resourceActionPending = targetResource != null;
@@ -165,12 +179,25 @@ public class abr : MonoBehaviour
             if (resourceTarget != null && resourceActionPending)
             {
                 resourceActionPending = false;
-                resourceTarget.FarmResource();
+                CompleteResourceAction();
                 Debug.Log($"<color=yellow>[UNIDAD]</color> {name} ha llegado a {resourceTarget.name} y comienza a recolectar.");
             }
             return true;
         }
         return false;
+    }
+
+    private void CompleteResourceAction()
+    {
+        if (resourceTarget == null)
+        {
+            return;
+        }
+
+        if (!RtsNetworkCommandBus.TryHandleResourceArrival(this, resourceTarget))
+        {
+            resourceTarget.FarmResource();
+        }
     }
 
     private void CancelMoveOrder()

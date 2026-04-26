@@ -49,6 +49,7 @@ public class GameSessionStats : MonoBehaviour
     private DateTime sessionStartUtc;
     private bool isSubmitting;
     private bool sessionSubmitted;
+    private int sessionVersion;
 
     public bool IsSubmitting => isSubmitting;
     public bool SessionSubmitted => sessionSubmitted;
@@ -199,9 +200,15 @@ public class GameSessionStats : MonoBehaviour
         SessionSubmitStateChanged?.Invoke(true);
 
         SessionSummaryPayload payload = BuildSummaryPayload();
+        int submitVersion = sessionVersion;
         apiClient.SendSessionSummary(payload,
             successMessage =>
             {
+                if (submitVersion != sessionVersion)
+                {
+                    return;
+                }
+
                 isSubmitting = false;
                 sessionSubmitted = true;
                 SessionSubmitStateChanged?.Invoke(false);
@@ -209,6 +216,11 @@ public class GameSessionStats : MonoBehaviour
             },
             errorMessage =>
             {
+                if (submitVersion != sessionVersion)
+                {
+                    return;
+                }
+
                 isSubmitting = false;
                 SessionSubmitStateChanged?.Invoke(false);
                 onError?.Invoke(errorMessage);
@@ -220,6 +232,20 @@ public class GameSessionStats : MonoBehaviour
         FinishAndSendSession(
             onSuccess: message => Debug.Log("[SESSION] Envio exitoso: " + message),
             onError: error => Debug.LogWarning("[SESSION] Error al enviar sesion: " + error));
+    }
+
+    public void ResetSession()
+    {
+        totalWood = 0;
+        totalGold = 0;
+        totalGatherActions = 0;
+        sessionStartRealtime = Time.realtimeSinceStartup;
+        sessionStartUtc = DateTime.UtcNow;
+        isSubmitting = false;
+        sessionSubmitted = false;
+        sessionVersion++;
+        SessionSubmitStateChanged?.Invoke(false);
+        NotifyStatsChanged();
     }
 
     private void NotifyStatsChanged()

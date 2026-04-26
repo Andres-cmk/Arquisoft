@@ -1,0 +1,31 @@
+services:
+  db:
+    image: postgres:16
+    env_file:
+      - .env
+    ports:
+      - "5433:5432"
+
+  support:
+    build: .
+    working_dir: /app_dir/support-service
+    command: python -m uvicorn app.main:app --host 0.0.0.0 --port 8000
+    ports:
+      - "8000:8000"
+    depends_on:
+      - db
+    env_file:
+      - .env
+    environment:
+      PYTHONPATH: /app_dir:/app_dir/support-service
+
+  matchmaking:
+    build: .
+    working_dir: /app_dir/matchmaking-service
+    command: python -m uvicorn app.main:app --host 0.0.0.0 --port 8001
+    ports:
+      - "8001:8001"
+    env_file:
+      - .env
+    environment:
+      PYTHONPATH: /app_dir:/app_dir/matchmaking-service
