@@ -205,7 +205,7 @@ public class RtsNetworkCommandBus : MonoBehaviour
         return true;
     }
 
-    public static bool TryHandleResourceArrival(abr unit, ResourceNode resource)
+    public static bool TryHandleResourceArrival(Humano unit, ResourceNode resource)
     {
         if (!IsMultiplayerActive)
         {
@@ -369,7 +369,7 @@ public class RtsNetworkCommandBus : MonoBehaviour
 
         foreach (int unitId in unitIds)
         {
-            if (RtsEntityRegistry.TryGetComponent(unitId, out abr unit))
+            if (RtsEntityRegistry.TryGetComponent(unitId, out Humano unit))
             {
                 unit.SetMoveTargetFromNetwork(destination, resource);
             }

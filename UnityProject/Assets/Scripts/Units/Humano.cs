@@ -1,12 +1,16 @@
 using UnityEngine;
 using UnityEngine.AI;
 
-
-public class abr : MonoBehaviour
+/// <summary>
+/// Clase base para todas las unidades humanoides.
+/// Define la lógica común de movimiento, animación y manejo de recursos.
+/// </summary>
+public abstract class Humano : MonoBehaviour
 {
     [Header("Movement")]
+    public float health = 100f;
     public float speed = 5f;
-    public float stoppingDistance = 0.1f;
+    public float stoppingDistance = 2f;
     public float stuckTimeout = 1.2f;
     public float progressEpsilon = 0.01f;
 
@@ -17,19 +21,20 @@ public class abr : MonoBehaviour
     public float rbMass = 20f;
     public float rbDrag = 8f;
 
-    private Rigidbody rb;
-    private Animator anim;
-    private SpriteRenderer spriteRenderer;
-    private Vector3 movement;
-    private bool hasMoveOrder;
-    private Vector3 moveTarget;
-    private ResourceNode resourceTarget;
-    private bool resourceActionPending;
-    private float previousDistanceToTarget = -1f;
-    private float stuckTimer;
-    private NavMeshAgent navMesh;
+    // Componentes privados
+    protected Rigidbody rb;
+    protected Animator anim;
+    protected SpriteRenderer spriteRenderer;
+    protected Vector3 movement;
+    protected bool hasMoveOrder;
+    protected Vector3 moveTarget;
+    protected ResourceNode resourceTarget;
+    protected bool resourceActionPending;
+    protected float previousDistanceToTarget = -1f;
+    protected float stuckTimer;
+    protected NavMeshAgent navMesh;
 
-    void Start()
+    protected virtual void Start()
     {
         rb = GetComponent<Rigidbody>();
         anim = GetComponent<Animator>();           
@@ -37,10 +42,12 @@ public class abr : MonoBehaviour
 
         navMesh = GetComponent<NavMeshAgent>();
         navMesh.speed = speed;
+        navMesh.stoppingDistance = 3.0f;
+
 
         if (rb == null)
         {
-            Debug.LogWarning("[UNIDAD] abr necesita un Rigidbody para moverse.");
+            Debug.LogWarning($"[UNIDAD] {name} necesita un Rigidbody para moverse.");
             enabled = false;
             return;
         }
@@ -54,7 +61,7 @@ public class abr : MonoBehaviour
         rb.collisionDetectionMode = CollisionDetectionMode.ContinuousSpeculative;
     }
 
-    void Update()
+    protected virtual void Update()
     {
         if (enableKeyboardDebugMovement)
         {
@@ -88,7 +95,7 @@ public class abr : MonoBehaviour
 
             if (toTarget.sqrMagnitude <= stoppingDistance * stoppingDistance)
             {
-                if (resourceTarget != null && resourceActionPending)
+                if (resourceTarget != null && resourceActionPending && GetComponent<Villager>() != null)
                 {
                     resourceActionPending = false;
                     CompleteResourceAction();
@@ -123,11 +130,10 @@ public class abr : MonoBehaviour
             UpdateFacing(movement);
         }
 
-
         CheckArrival();
     }
 
-    void FixedUpdate()
+    protected virtual void FixedUpdate()
     {
         if (movement.magnitude > 0.1f)
         {
@@ -136,7 +142,7 @@ public class abr : MonoBehaviour
         }
     }
 
-    public void SetMoveTarget(Vector3 target, ResourceNode targetResource = null)
+    public virtual void SetMoveTarget(Vector3 target, ResourceNode targetResource = null, Humano targetHuman = null)
     {
         if (RtsNetworkCommandBus.IsMultiplayerActive)
         {
@@ -147,10 +153,10 @@ public class abr : MonoBehaviour
             return;
         }
 
-        SetMoveTargetFromNetwork(target, targetResource);
+        SetMoveTargetFromNetwork(target, targetResource, targetHuman);
     }
 
-    public void SetMoveTargetFromNetwork(Vector3 target, ResourceNode targetResource = null)
+    public virtual void SetMoveTargetFromNetwork(Vector3 target, ResourceNode targetResource = null, Humano targetHuman = null)
     {
         moveTarget = target;
         resourceTarget = targetResource;
@@ -159,6 +165,18 @@ public class abr : MonoBehaviour
         if(navMesh == null)
         {
             Debug.LogWarning($"[UNIDAD] {name} no tiene NavMeshAgent. No se puede ejecutar orden de movimiento.");
+            return;
+        }
+        else if(this.GetComponentInChildren<Villager>() == null && resourceTarget != null)
+        {
+            Debug.Log($"<color=Red>[UNIDAD]</color> {name} no es un Villager y no puede recolectar recursos. Orden de movimiento ignorada.");
+            resourceTarget = null;
+            resourceActionPending = false;
+            return;
+        }
+        else if(this.GetComponentInChildren<Warrior>() == null && targetHuman != null)
+        {
+            Debug.Log($"<color=Red>[UNIDAD]</color> {name} no es un Warrior y no puede atacar unidades. Orden de movimiento ignorada.");
             return;
         }
         else
@@ -171,7 +189,7 @@ public class abr : MonoBehaviour
         }
     }
 
-    public bool CheckArrival()
+    public virtual bool CheckArrival()
     {
         if (!navMesh.pathPending && navMesh.remainingDistance <= 2f)
         {
@@ -187,20 +205,17 @@ public class abr : MonoBehaviour
         return false;
     }
 
-    private void CompleteResourceAction()
+    protected virtual void CompleteResourceAction()
     {
         if (resourceTarget == null)
         {
             return;
         }
 
-        if (!RtsNetworkCommandBus.TryHandleResourceArrival(this, resourceTarget))
-        {
-            resourceTarget.FarmResource();
-        }
+
     }
 
-    private void CancelMoveOrder()
+    protected virtual void CancelMoveOrder()
     {
         movement = Vector3.zero;
         hasMoveOrder = false;
@@ -210,7 +225,8 @@ public class abr : MonoBehaviour
         stuckTimer = 0f;
     }
 
-    private void UpdateFacing(Vector3 direction)
+
+    protected virtual void UpdateFacing(Vector3 direction)
     {
         if (direction.sqrMagnitude < 0.0001f) return;
 
@@ -223,4 +239,30 @@ public class abr : MonoBehaviour
             spriteRenderer.flipX = direction.x < 0f;
         }
     }
-}   
+
+
+    public virtual bool TakeDamage(float damage)
+    {
+
+        Debug.Log($"{name} tiene de salud actual: {this.health}");
+
+        this.health -= damage;
+        Debug.Log($"{name} recibió {damage} daño. Salud actual: {this.health}");
+
+        if(health <= 0f){
+            Debug.Log($"<color=Blue>[Derrota]</color> {name} ha sido derrotada.");
+            Die();
+            return false;
+        }
+
+        return true;
+    }
+
+    protected virtual void Die()
+    {
+        Debug.Log($"{name} ha muerto.");
+        Destroy(gameObject);
+    }
+
+
+}
