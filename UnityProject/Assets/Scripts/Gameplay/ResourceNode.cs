@@ -28,10 +28,21 @@ public class ResourceNode : MonoBehaviour
 
     public void FarmResource()
     {
+        if (RtsNetworkCommandBus.IsMultiplayerActive)
+        {
+            Debug.LogWarning("[RECURSO] La recoleccion multiplayer debe pasar por RtsNetworkCommandBus.");
+            return;
+        }
+
+        TryFarmResourceLocal(true);
+    }
+
+    public bool TryFarmResourceLocal(bool recordStats)
+    {
         if (resourceState == ResourceState.Depleted)
         {
             Debug.Log($"<color=orange>[RECURSO]</color> {name} ya estaba agotado. Se ignora la accion.");
-            return;
+            return false;
         }
 
         bool gathered = false;
@@ -57,11 +68,17 @@ public class ResourceNode : MonoBehaviour
                 break;
         }
 
-        if (gathered)
+        if (gathered && recordStats)
         {
             GameSessionStats.GetOrCreate().RecordGather(resourceType, gatherAmount, name);
         }
 
         resourceState = ResourceState.Depleted;
+        return gathered;
+    }
+
+    public void ApplyGatheredFromNetwork(bool recordStats)
+    {
+        TryFarmResourceLocal(recordStats);
     }
 }
