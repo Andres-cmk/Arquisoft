@@ -3,12 +3,16 @@ from pydantic import BaseModel, Field
 
 
 class UserCreate(BaseModel):
-    username: str = Field(..., min_length=1, max_length=20)
+    username: str = Field(..., min_length=1, max_length=255)
     password: str = Field(..., min_length=1, max_length=255)
 
 class UserLogin(BaseModel):
-    username: str = Field(..., min_length=1, max_length=20)
+    username: str = Field(..., min_length=1, max_length=255)
     password: str = Field(..., min_length=1, max_length=255)
+
+
+class GoogleTokenIn(BaseModel):
+    id_token: str = Field(..., min_length=1)
 
 class UserResponse(BaseModel):
     user_id: int
@@ -17,11 +21,3 @@ class UserResponse(BaseModel):
 
     class Config:
         from_attributes = True
-
-
-class LoginResponse(BaseModel):
-    message: str
-    user_id: int
-    username: str
-    access_token: str
-    token_type: str = "bearer"

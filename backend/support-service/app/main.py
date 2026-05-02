@@ -1,34 +1,32 @@
+import os
+from dotenv import load_dotenv
 from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-
+from app.connections.postgresql_connection import Base, engine
+from app.models.user import User
 from app.routers.auth import router as auth_router
-from app.routers.match import router as legacy_match_router
-from app.routers.session_summary import router as session_summary_router
-from shared.connections.postgresql_connection import Base, engine
-from shared.cors import configure_cors
-from shared.models.user import User
+from app.routers.match import router as match_router
 
-app = FastAPI(title="RTS Support API")
-templates = Jinja2Templates(directory="templates")
+app = FastAPI()
 
-configure_cors(app)
+
+load_dotenv()
+
+frontend_origin = os.getenv("FRONTEND_ORIGIN")
+if frontend_origin:
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=[frontend_origin],
+        allow_credentials=True,
+        allow_methods=["*"] ,
+        allow_headers=["*"],
+    )
+
 app.include_router(auth_router)
-app.include_router(session_summary_router)
-app.include_router(legacy_match_router)
-app.mount("/static", StaticFiles(directory="static"), name="static")
-
+app.include_router(match_router)
 
 @app.on_event("startup")
 def on_startup():
     Base.metadata.create_all(bind=engine)
-
-
-@app.get("/health")
-def health():
-    return {"status": "ok", "component": "support"}
-
-
-@app.get("/home")
-def home(request: Request):
-    return templates.TemplateResponse(request, "home.html")
