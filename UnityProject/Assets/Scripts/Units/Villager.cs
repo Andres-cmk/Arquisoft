@@ -1,10 +1,9 @@
 using UnityEngine;
 
-/// <summary>
 /// Unidad Villager: Constructor/Recolector
 /// Hereda todas las funcionalidades base de Humano.
 /// Especializada en recolección de recursos.
-/// </summary>
+
 public class Villager : Humano
 {
     [Header("Villager Settings")]

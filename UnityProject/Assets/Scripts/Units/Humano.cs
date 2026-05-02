@@ -1,10 +1,8 @@
 using UnityEngine;
 using UnityEngine.AI;
 
-/// <summary>
-/// Clase base para todas las unidades humanoides.
+/// Clase base para todas las unidades humanas.
 /// Define la lógica común de movimiento, animación y manejo de recursos.
-/// </summary>
 public abstract class Humano : MonoBehaviour
 {
     [Header("Movement")]
@@ -214,6 +212,19 @@ public abstract class Humano : MonoBehaviour
 
 
     }
+
+    protected virtual void StopMovement()
+    {
+        speed = 0f;
+        navMesh.isStopped = true;
+    }
+
+    protected virtual void RestartMovement()
+    {
+        navMesh.isStopped = false;
+        speed = 5f;
+    }
+
 
     protected virtual void CancelMoveOrder()
     {

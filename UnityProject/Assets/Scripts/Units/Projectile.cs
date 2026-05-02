@@ -6,8 +6,8 @@ using UnityEngine;
 /// </summary>
 public class Projectile : MonoBehaviour
 {
-    private float damage = 0f;
-    private Warrior shooter;
+    private float damage = 10f;
+    private Warrior_Distance shooter;
     private float lifetime = 10f;
     private float spawnTime;
 
@@ -25,45 +25,39 @@ public class Projectile : MonoBehaviour
         }
     }
 
-    private void OnTriggerEnter(Collider collision)
+    private void OnCollisionEnter(Collision collision)
     {
-        // No impactar con el disparador
-        if (collision.gameObject == shooter.gameObject)
-        {
-            return;
-        }
+        
 
-        // Aplicar daño a guerreros enemigos
-        Warrior targetWarrior = collision.GetComponent<Warrior>();
-        if (targetWarrior != null && targetWarrior != shooter)
+        Debug.Log($"<color=Red>[DEBUG]</color>Llamada a OnCollisionEnter.");
+        // No impactar con el que dispara
+        if (collision.gameObject == shooter.gameObject) return;
+
+        // Aplicar daño a enemigos
+        Humano targetHuman = collision.gameObject.GetComponent<Humano>();
+        if (targetHuman != null && targetHuman != shooter)
         {
-            targetWarrior.TakeDamage(damage);
-            Debug.Log($"Proyectil impactó a {targetWarrior.name} con {damage} de daño.");
+            targetHuman.TakeDamage(damage);
+            Debug.Log($"Proyectil impactó a {targetHuman.name} con {damage} de daño.");
         }
 
         // Destruir proyectil al impactar
         Destroy(gameObject);
     }
 
-    /// <summary>
     /// Configura el daño del proyectil
-    /// </summary>
     public void SetDamage(float damageAmount)
     {
         damage = damageAmount;
     }
 
-    /// <summary>
     /// Configura quién disparó el proyectil
-    /// </summary>
-    public void SetShooter(Warrior shooterUnit)
+    public void SetShooter(Warrior_Distance shooterUnit)
     {
         shooter = shooterUnit;
     }
 
-    /// <summary>
     /// Configura la duración máxima del proyectil
-    /// </summary>
     public void SetLifetime(float seconds)
     {
         lifetime = seconds;

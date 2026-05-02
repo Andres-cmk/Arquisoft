@@ -14,6 +14,7 @@ public class Warrior_Mele : Warrior
         health = 120f;
         speed = 4.5f;
         attackPower = 10f;
+        
         attackRange = 1.2f;
         attackCooldown = 1.2f;
         armor = 8f;

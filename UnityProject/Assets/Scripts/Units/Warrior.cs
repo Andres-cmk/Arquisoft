@@ -1,15 +1,14 @@
 using UnityEngine;
 
-/// <summary>
 /// Clase base para unidades guerreras.
 /// Hereda de Humano y añade funcionalidades de combate comunes.
 /// Sirve como clase base para Warrior_Mele y Warrior_Distance.
-/// </summary>
+
 public abstract class Warrior : Humano
 {
     [Header("Warrior Settings")]
+    public float attackRange;
     public float attackPower = 25f;
-    public float attackRange = 1f;
     public float attackCooldown = 1.0f;
     public float armor = 5f;
 
@@ -43,9 +42,7 @@ public abstract class Warrior : Humano
     {
         moveTarget = target;
         currentTarget = targetHuman != null ? targetHuman.gameObject : null;
-        resourceActionPending = targetResource != null;
-
-        Debug.LogWarning($"[Debug] componente en Villager en hijos {this.GetComponentInChildren<Villager>()} , resource: {targetResource}.");
+        resourceActionPending = targetResource != null;        
 
         if(navMesh == null)
         {
@@ -59,30 +56,60 @@ public abstract class Warrior : Humano
             resourceActionPending = false;
             return;
         }
-        else if(targetHuman != null){
+        else if(targetHuman != null)
+        {
+            RestartMovement();
             navMesh.SetDestination(targetHuman.transform.position);
             hasMoveOrder = true;
             previousDistanceToTarget = -1f;
             stuckTimer = 0f;
-            Debug.Log($"1Unidad moviendose a {moveTarget} {(targetHuman != null ? "para recolectar Atacar" : "")}.");
+            Debug.Log($"Unidad moviendose a {moveTarget} {(targetHuman != null ? "para Atacar" : "")}.");
+
         }
         else
         {
+            RestartMovement();
             navMesh.SetDestination(moveTarget);
             hasMoveOrder = true;
             previousDistanceToTarget = -1f;
             stuckTimer = 0f;
-            Debug.Log($"2Unidad moviendose a {moveTarget} {(targetHuman != null ? "para recolectar Atacar" : "")}.");
+            Debug.Log($"Unidad moviendose a {moveTarget}.");
         }
     }
 
     public void UpdateTargetFromNetWork()
     {
         if(currentTarget != null){
-            navMesh.SetDestination(currentTarget.transform.position);
-            //Debug.Log($"<color=yellow>[DEBUG]</color> Recalculando ruta de {name} {(currentTarget.name != null ? "para recolectar Atacar" : "")}.");
+
+            float distanceToTarget = Vector3.Distance(transform.position, currentTarget.transform.position);
+
+            if(distanceToTarget > attackRange || !hasVisionLine(currentTarget.transform)){
+                RestartMovement();
+                navMesh.SetDestination(currentTarget.transform.position);
+            }
+            else{
+                StopMovement();
+            }
         }
     }
+
+
+    public bool hasVisionLine(Transform currentTarget)
+    {
+        Vector3 origen = transform.position + Vector3.up * 1.5f;
+        Vector3 destino = currentTarget.position + Vector3.up * 1.5f;
+
+        Vector3 direccion = (destino - origen).normalized;
+        float distancia = Vector3.Distance(origen, destino);
+
+        if (Physics.Raycast(origen, direccion, out RaycastHit hit, distancia))
+        {
+            return hit.transform == currentTarget;
+        }
+        return false;
+
+    }
+
 
     /// Método abstracto para el ataque específico de cada tipo de guerrero
     protected abstract void PerformAttack();
@@ -94,7 +121,8 @@ public abstract class Warrior : Humano
             return;
         }
 
-        float distanceToTarget = Vector3.Distance(transform.position, currentTarget.transform.position);
+        //float distanceToTarget = Vector3.Distance(transform.position, currentTarget.transform.position);
+        float distanceToTarget = navMesh.remainingDistance;
 
         // Si el objetivo está fuera del rango, cancelar
         if (distanceToTarget > attackRange + 2f)
@@ -106,8 +134,6 @@ public abstract class Warrior : Humano
         {
             if (Time.time >= lastAttackTime + attackCooldown)
             {
-                Debug.LogWarning($"[Debug] Time debug.");
-                //CancelMoveOrder();
                 PerformAttack();
                 lastAttackTime = Time.time;
             }
