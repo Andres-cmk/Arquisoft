@@ -1,42 +1,59 @@
+import os
+import secrets
+
 from fastapi import APIRouter, Depends, HTTPException, status
+from google.auth.transport import requests as google_requests
+from google.oauth2 import id_token as google_id_token
 from sqlalchemy.orm import Session
 
-from app.schemas.user_schemas import LoginResponse, UserCreate, UserLogin, UserResponse
-from shared.connections.postgresql_connection import get_db
-from shared.models.user import User
-from shared.security import create_access_token
+from app.connections.postgresql_connection import get_db
+from app.models.user import User
+from app.schemas.user_schemas import GoogleTokenIn, UserCreate, UserLogin, UserResponse
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
-@router.post("/users", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
-def create_user(user: UserCreate, db: Session = Depends(get_db)):
-    existing_user = db.query(User).filter(User.username == user.username).first()
-    if existing_user:
+@router.post("/google", response_model=UserResponse)
+def login_with_google(payload: GoogleTokenIn, db: Session = Depends(get_db)):
+    google_client_id = os.getenv("GOOGLE_CLIENT_ID")
+    if not google_client_id:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Username already exists",
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Missing GOOGLE_CLIENT_ID in backend environment",
         )
 
-    new_user = User(username=user.username, password=user.password)
-    db.add(new_user)
-    db.commit()
-    db.refresh(new_user)
-
-    return new_user
-
-@router.post("/login", response_model=LoginResponse)
-def login(user: UserLogin, db: Session = Depends(get_db)):
-    existing_user = db.query(User).filter(User.username == user.username).first()
-    if not existing_user or existing_user.password != user.password:
+    try:
+        info = google_id_token.verify_oauth2_token(
+            payload.id_token,
+            google_requests.Request(),
+            google_client_id,
+            clock_skew_in_seconds=10,
+        )
+    except Exception as exc:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid username or password",
+            detail="Invalid Google id_token",
+        ) from exc
+
+    email = info.get("email")
+    name = info.get("name", "")    
+
+    if not email:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Google token has no email",
         )
-    access_token = create_access_token(existing_user.user_id, existing_user.username)
-    return {
-        "message": "Login successful",
-        "user_id": existing_user.user_id,
-        "username": existing_user.username,
-        "access_token": access_token,
-        "token_type": "bearer",
-    }
+
+    user = db.query(User).filter(User.email == email).first()
+
+    if not user:
+        
+        user = User(
+            username=name,
+            email=email,
+            password=secrets.token_urlsafe(32)
+        )
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+
+    return user

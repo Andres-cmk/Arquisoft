@@ -4,3 +4,7 @@ config/accountKey.json
 config/serviceAccountKey.json
 support-service/config/accountKey.json
 support-service/config/serviceAccountKey.json
+.env
+.env.*
+venv/
+__pycache__/

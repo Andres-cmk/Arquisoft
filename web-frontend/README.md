@@ -1,36 +1,69 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+# Web Frontend (Next.js)
 
-## Getting Started
+Guía rápida para que cualquier persona del equipo pueda levantar el frontend en su máquina.
 
-First, run the development server:
+## Requisitos
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+- Node.js 20+ (recomendado)
+- npm (viene con Node)
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Opcional:
 
-You can start editing the page by modifying `app/page.js`. The page auto-updates as you edit the file.
+- Docker Desktop (si quieres levantarlo en contenedor)
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## 1) Variables de entorno
 
-## Learn More
+Este proyecto usa NextAuth + Google y llama al backend.
 
-To learn more about Next.js, take a look at the following resources:
+1. Copia el archivo de ejemplo:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+	 - macOS/Linux:
+		 - `cp .env.example .env`
+	 - Windows PowerShell:
+		 - `Copy-Item .env.example .env`
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+2. Edita `.env` y completa (mínimo) estas variables:
 
-## Deploy on Vercel
+- `AUTH_SECRET`: un secreto largo aleatorio
+- `AUTH_GOOGLE_ID`: Client ID de Google OAuth
+- `AUTH_GOOGLE_SECRET`: Client Secret de Google OAuth
+- `PY_BACKEND_URL`: URL del backend (por defecto `http://localhost:8000`)
+- `NEXTAUTH_URL`: URL del frontend (por defecto `http://localhost:3000`)
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Notas:
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- `.env` NO se sube a git (solo es local). No pongas secretos en `.env.example`.
+- Si no tienes `AUTH_SECRET`, para dev puedes generar uno así:
+	- macOS/Linux: `openssl rand -base64 32`
+	- Windows PowerShell: `[Convert]::ToBase64String((1..32 | ForEach-Object { Get-Random -Maximum 256 }))`
+
+## 2) Levantar en modo desarrollo (recomendado)
+
+Desde esta carpeta (`web-frontend/`):
+
+1. Instala dependencias:
+
+	 - `npm ci`
+
+2. Levanta el servidor:
+
+	 - `npm run dev`
+
+3. Abre:
+
+- http://localhost:3000
+
+## 3) Levantar con Docker (imagen de producción)
+
+Desde esta carpeta (`web-frontend/`):
+
+- `docker compose up --build`
+
+Luego abre:
+
+- http://localhost:3000
+
+## Troubleshooting rápido
+
+- Si el login con Google falla, revisa que `AUTH_GOOGLE_ID`/`AUTH_GOOGLE_SECRET` sean correctos y que el backend en `PY_BACKEND_URL` esté levantado.
+- Si el frontend no puede conectar al backend, confirma `PY_BACKEND_URL` (por ejemplo `http://localhost:8000`).
