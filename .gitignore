@@ -155,4 +155,4 @@ htmlcov/
 .vsconfig
 UnityProject/.vs/
 UnityProject/.vsconfig
-Monolith/.env
+Monolith/.envMonolith/
