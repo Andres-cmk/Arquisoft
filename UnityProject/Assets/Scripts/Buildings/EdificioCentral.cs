@@ -14,6 +14,7 @@ public class EdificioCentral : MonoBehaviour
     public TextMeshProUGUI textoProgreso;
 
     private BuildingState buildingState;
+    private Coroutine networkProductionRoutine;
 
     void Awake()
     {
@@ -22,6 +23,11 @@ public class EdificioCentral : MonoBehaviour
 
     public void IniciarProduccion()
     {
+        if (RtsNetworkCommandBus.TryRequestProduction(this))
+        {
+            return;
+        }
+
         if (!estaProduciendo)
         {
             StartCoroutine(CrearUnidadRoutine());
@@ -74,5 +80,98 @@ public class EdificioCentral : MonoBehaviour
 
         if (textoProgreso != null) textoProgreso.text = "Listo";
         Debug.Log("<color=yellow>[EDIFICIO]</color> Unidad creada en Edificio de Ingeniería.");
+    }
+
+    public float GetProductionDuration()
+    {
+        return Mathf.Max(0f, tiempoCreacion);
+    }
+
+    public Vector3 GetSpawnPosition()
+    {
+        return puntoSpawn != null ? puntoSpawn.position : transform.position + new Vector3(0, 1.6f, 10);
+    }
+
+    public Quaternion GetSpawnRotation()
+    {
+        return puntoSpawn != null && unidadPrefab != null ? puntoSpawn.rotation : (unidadPrefab != null ? unidadPrefab.transform.rotation : transform.rotation);
+    }
+
+    public void BeginNetworkProductionVisual()
+    {
+        if (networkProductionRoutine != null)
+        {
+            StopCoroutine(networkProductionRoutine);
+        }
+
+        networkProductionRoutine = StartCoroutine(NetworkProductionVisualRoutine());
+    }
+
+    private IEnumerator NetworkProductionVisualRoutine()
+    {
+        estaProduciendo = true;
+        if (buildingState != null)
+        {
+            buildingState.currentState = BuildingState.State.Generating;
+        }
+
+        float tiempoRestante = tiempoCreacion;
+        while (tiempoRestante > 0)
+        {
+            tiempoRestante -= Time.deltaTime;
+            if (textoProgreso != null)
+            {
+                textoProgreso.text = $"Creando unidad: {tiempoRestante:F1}s";
+            }
+            yield return null;
+        }
+
+        if (textoProgreso != null)
+        {
+            textoProgreso.text = "Esperando host";
+        }
+    }
+
+    public GameObject SpawnProducedUnitFromNetwork(int entityId, int ownerSlot, Vector3 spawnPosition, Quaternion spawnRotation)
+    {
+        if (RtsEntityRegistry.TryGetEntity(entityId, out RtsNetworkEntity existingUnit))
+        {
+            ResetProductionState();
+            return existingUnit.gameObject;
+        }
+
+        if (networkProductionRoutine != null)
+        {
+            StopCoroutine(networkProductionRoutine);
+            networkProductionRoutine = null;
+        }
+
+        if (unidadPrefab == null)
+        {
+            Debug.LogWarning("[EDIFICIO] No hay unidadPrefab asignado en EdificioCentral.");
+            ResetProductionState();
+            return null;
+        }
+
+        GameObject unit = Instantiate(unidadPrefab, spawnPosition, spawnRotation);
+        RtsEntityRegistry.GetOrAdd(unit, entityId, ownerSlot, RtsEntityKind.Unit);
+
+        ResetProductionState();
+        Debug.Log("<color=yellow>[EDIFICIO]</color> Unidad creada por host multiplayer.");
+        return unit;
+    }
+
+    private void ResetProductionState()
+    {
+        estaProduciendo = false;
+        if (buildingState != null && buildingState.currentState == BuildingState.State.Generating)
+        {
+            buildingState.currentState = BuildingState.State.Normal;
+        }
+
+        if (textoProgreso != null)
+        {
+            textoProgreso.text = "Listo";
+        }
     }
 }

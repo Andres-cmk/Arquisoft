@@ -17,7 +17,7 @@ public class SessionStatsHUDConnector : MonoBehaviour
     [SerializeField] private Button finishSessionButton;
 
     [Header("Navigation")]
-    [SerializeField] private string mainMenuSceneName = "MainMenu";
+    [SerializeField] private string mainMenuSceneName = "MainMenuScene";
 
     [Header("Format")]
     [SerializeField] private string woodPrefix = "Madera: ";
@@ -27,6 +27,7 @@ public class SessionStatsHUDConnector : MonoBehaviour
     [SerializeField] private float timeRefreshInterval = 0.25f;
 
     private float nextTimeRefresh;
+    private bool exitingSession;
 
     private void Awake()
     {
@@ -82,31 +83,42 @@ public class SessionStatsHUDConnector : MonoBehaviour
 
     private void OnFinishSessionClicked()
     {
+        if (exitingSession)
+        {
+            return;
+        }
+
+        exitingSession = true;
         GameSessionStats stats = GameSessionStats.GetOrCreate();
-        SetSubmitStatus("Enviando sesion...");
+        SetSubmitStatus("Terminando sesion...");
+        RefreshSubmitControls();
 
-        stats.FinishAndSendSession(
-            onSuccess: message =>
-            {
-                SetSubmitStatus("Sesion enviada.");
-                if (!string.IsNullOrEmpty(message))
+        if (!stats.SessionSubmitted && !stats.IsSubmitting)
+        {
+            stats.FinishAndSendSession(
+                onSuccess: message =>
                 {
-                    Debug.Log("[HUD] Respuesta backend: " + message);
-                }
+                    if (!string.IsNullOrEmpty(message))
+                    {
+                        Debug.Log("[HUD] Respuesta backend: " + message);
+                    }
+                },
+                onError: error =>
+                {
+                    Debug.LogWarning("[HUD] No se pudo enviar sesion: " + error);
+                });
+        }
 
-                RefreshSubmitControls();
-                GoToMainMenu();
-            },
-            onError: error =>
-            {
-                SetSubmitStatus("Error al enviar sesion.");
-                Debug.LogWarning("[HUD] No se pudo enviar sesion: " + error);
-                RefreshSubmitControls();
-            });
+        GoToMainMenu();
     }
 
     private void GoToMainMenu()
     {
+        if (MultiplayerBootstrap.Instance != null)
+        {
+            MultiplayerBootstrap.Instance.LeaveCurrentMatch();
+        }
+
         if (string.IsNullOrEmpty(mainMenuSceneName))
         {
             Debug.LogWarning("[HUD] Nombre de escena principal vacio.");
@@ -162,7 +174,7 @@ public class SessionStatsHUDConnector : MonoBehaviour
     private void RefreshSubmitControls()
     {
         GameSessionStats stats = GameSessionStats.GetOrCreate();
-        bool disableButton = stats.IsSubmitting || stats.SessionSubmitted;
+        bool disableButton = stats.IsSubmitting || exitingSession;
 
         if (finishSessionButton != null)
         {

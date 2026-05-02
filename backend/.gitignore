@@ -1,0 +1,6 @@
+.env
+__pycache__/
+config/accountKey.json
+config/serviceAccountKey.json
+support-service/config/accountKey.json
+support-service/config/serviceAccountKey.json
