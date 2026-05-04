@@ -1,69 +1,67 @@
 # Web Frontend (Next.js)
 
-Guía rápida para que cualquier persona del equipo pueda levantar el frontend en su máquina.
+Guia rapida para levantar el frontend localmente.
 
 ## Requisitos
 
-- Node.js 20+ (recomendado)
-- npm (viene con Node)
+- Node.js 20+
+- npm
+- Docker Desktop, opcional si se usa contenedor
 
-Opcional:
-
-- Docker Desktop (si quieres levantarlo en contenedor)
-
-## 1) Variables de entorno
+## Variables de entorno
 
 Este proyecto usa NextAuth + Google y llama al backend.
 
-1. Copia el archivo de ejemplo:
+Crea o edita `.env` con estas variables:
 
-	 - macOS/Linux:
-		 - `cp .env.example .env`
-	 - Windows PowerShell:
-		 - `Copy-Item .env.example .env`
+```env
+AUTH_SECRET=replace-with-a-long-random-secret
+AUTH_GOOGLE_ID=google-oauth-client-id
+AUTH_GOOGLE_SECRET=google-oauth-client-secret
+PY_BACKEND_URL=http://localhost:8000
+NEXTAUTH_URL=http://localhost:3000
+```
 
-2. Edita `.env` y completa (mínimo) estas variables:
+`.env` no se sube a git. Para generar `AUTH_SECRET` en desarrollo:
 
-- `AUTH_SECRET`: un secreto largo aleatorio
-- `AUTH_GOOGLE_ID`: Client ID de Google OAuth
-- `AUTH_GOOGLE_SECRET`: Client Secret de Google OAuth
-- `PY_BACKEND_URL`: URL del backend (por defecto `http://localhost:8000`)
-- `NEXTAUTH_URL`: URL del frontend (por defecto `http://localhost:3000`)
+- macOS/Linux: `openssl rand -base64 32`
+- Windows PowerShell: `[Convert]::ToBase64String((1..32 | ForEach-Object { Get-Random -Maximum 256 }))`
 
-Notas:
+## Desarrollo local
 
-- `.env` NO se sube a git (solo es local). No pongas secretos en `.env.example`.
-- Si no tienes `AUTH_SECRET`, para dev puedes generar uno así:
-	- macOS/Linux: `openssl rand -base64 32`
-	- Windows PowerShell: `[Convert]::ToBase64String((1..32 | ForEach-Object { Get-Random -Maximum 256 }))`
+Desde `web-frontend/`:
 
-## 2) Levantar en modo desarrollo (recomendado)
+```bash
+npm ci
+npm run dev
+```
 
-Desde esta carpeta (`web-frontend/`):
+Luego abre `http://localhost:3000`.
 
-1. Instala dependencias:
+## Docker
 
-	 - `npm ci`
+Desde `web-frontend/`:
 
-2. Levanta el servidor:
+```bash
+docker compose up --build
+```
 
-	 - `npm run dev`
+Luego abre `http://localhost:3000`.
 
-3. Abre:
+## Login desde Unity
 
-- http://localhost:3000
+Unity abre `/unity-login` con un callback local. Tras Google, esta ruta devuelve a Unity el `access_token` emitido por el backend.
 
-## 3) Levantar con Docker (imagen de producción)
+Para pruebas multiplayer en la misma maquina, Unity envia `select_account=1`; la web fuerza el selector de cuenta de Google y cada instancia recibe el token de la cuenta elegida.
 
-Desde esta carpeta (`web-frontend/`):
+Para desarrollo local deben estar levantados:
 
-- `docker compose up --build`
+- Frontend: `http://localhost:3000`
+- Backend support: `http://localhost:8000`
 
-Luego abre:
+El backend debe tener `AUTH_GOOGLE_ID` o `GOOGLE_CLIENT_ID` con el mismo Client ID de Google usado por el frontend.
 
-- http://localhost:3000
+## Troubleshooting rapido
 
-## Troubleshooting rápido
-
-- Si el login con Google falla, revisa que `AUTH_GOOGLE_ID`/`AUTH_GOOGLE_SECRET` sean correctos y que el backend en `PY_BACKEND_URL` esté levantado.
-- Si el frontend no puede conectar al backend, confirma `PY_BACKEND_URL` (por ejemplo `http://localhost:8000`).
+- Si Google falla, revisa `AUTH_GOOGLE_ID`, `AUTH_GOOGLE_SECRET`, `AUTH_SECRET` y los redirect URIs configurados en Google Cloud.
+- Si el frontend no puede conectar al backend, confirma `PY_BACKEND_URL`.

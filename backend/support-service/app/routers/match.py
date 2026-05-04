@@ -1,11 +1,12 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, status
 
 from app.connections.firebase_connection import db
-from app.schemas.match_schemas import ReceivedPayload, PayloadinDB
+from app.schemas.match_schemas import ReceivedPayload
 
-router = APIRouter(prefix="/match", tags=["match"])
+router = APIRouter(tags=["match"])
 
-@router.post("/session-summary", status_code=status.HTTP_201_CREATED)
+@router.post("/support/session-summary", status_code=status.HTTP_201_CREATED)
+@router.post("/match/session-summary", status_code=status.HTTP_201_CREATED)
 def receive_match_summary(payload: ReceivedPayload):
     payload_dict = payload.dict()
 

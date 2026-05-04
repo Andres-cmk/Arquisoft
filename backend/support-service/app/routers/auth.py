@@ -4,21 +4,23 @@ import secrets
 from fastapi import APIRouter, Depends, HTTPException, status
 from google.auth.transport import requests as google_requests
 from google.oauth2 import id_token as google_id_token
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from app.connections.postgresql_connection import get_db
 from app.models.user import User
-from app.schemas.user_schemas import GoogleTokenIn, UserCreate, UserLogin, UserResponse
+from app.schemas.user_schemas import AuthResponse, GoogleTokenIn
+from shared.security import create_access_token
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
-@router.post("/google", response_model=UserResponse)
+@router.post("/google", response_model=AuthResponse)
 def login_with_google(payload: GoogleTokenIn, db: Session = Depends(get_db)):
-    google_client_id = os.getenv("GOOGLE_CLIENT_ID")
+    google_client_id = os.getenv("GOOGLE_CLIENT_ID") or os.getenv("AUTH_GOOGLE_ID")
     if not google_client_id:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Missing GOOGLE_CLIENT_ID in backend environment",
+            detail="Missing GOOGLE_CLIENT_ID or AUTH_GOOGLE_ID in backend environment",
         )
 
     try:
@@ -35,7 +37,6 @@ def login_with_google(payload: GoogleTokenIn, db: Session = Depends(get_db)):
         ) from exc
 
     email = info.get("email")
-    name = info.get("name", "")    
 
     if not email:
         raise HTTPException(
@@ -43,17 +44,29 @@ def login_with_google(payload: GoogleTokenIn, db: Session = Depends(get_db)):
             detail="Google token has no email",
         )
 
-    user = db.query(User).filter(User.email == email).first()
+    user = db.query(User).filter(or_(User.email == email, User.username == email)).first()
 
     if not user:
-        
         user = User(
-            username=name,
+            username=email,
             email=email,
             password=secrets.token_urlsafe(32)
         )
         db.add(user)
         db.commit()
         db.refresh(user)
+    elif user.email != email:
+        user.email = email
+        db.commit()
+        db.refresh(user)
 
-    return user
+    access_token = create_access_token(user.user_id, user.username)
+
+    return {
+        "user_id": user.user_id,
+        "username": user.username,
+        "email": user.email,
+        "created_at": user.created_at,
+        "access_token": access_token,
+        "token_type": "bearer",
+    }

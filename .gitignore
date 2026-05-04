@@ -155,4 +155,5 @@ htmlcov/
 .vsconfig
 UnityProject/.vs/
 UnityProject/.vsconfig
+UnityProject/Build&Run/
 Monolith/.envMonolith/

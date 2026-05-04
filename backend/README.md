@@ -2,7 +2,7 @@
 
 Backend separado en dos servicios FastAPI y un paquete compartido:
 
-- `support-service`: autenticacion, usuarios, pagina `/home`, resumenes de partida y Firebase.
+- `support-service`: autenticacion, usuarios, resumenes de partida y Firebase.
 - `matchmaking-service`: cola multiplayer, ciclo de partida, ready state y metadata Relay/Lobby.
 - `shared`: CORS, seguridad, conexiones y modelos comunes.
 
@@ -12,8 +12,6 @@ Backend separado en dos servicios FastAPI y un paquete compartido:
 backend/
   support-service/
     app/
-    static/
-    templates/
     config/
   matchmaking-service/
     app/
@@ -41,6 +39,7 @@ POSTGRES_DB=arqui
 DATABASE_URL=postgresql://postgres:admin@db:5432/arqui
 FIREBASE_CREDENTIALS=config/serviceAccountKey.json
 AUTH_TOKEN_SECRET=replace-this-dev-secret
+AUTH_GOOGLE_ID=google-oauth-client-id
 ALLOWED_ORIGINS=*
 ```
 
@@ -63,21 +62,19 @@ Support:
 | Metodo | Ruta | Descripcion |
 |--------|------|-------------|
 | `GET` | `/health` | Health check |
-| `POST` | `/auth/users` | Crear usuario |
-| `POST` | `/auth/login` | Login. Devuelve `user_id` y `access_token` |
+| `POST` | `/auth/google` | Valida el `id_token` de Google y devuelve `user_id`, `username` y `access_token` |
 | `POST` | `/support/session-summary` | Guardar resumen en Firebase |
 | `POST` | `/match/session-summary` | Ruta legacy para resumen |
-| `GET` | `/home` | Pagina HTML existente |
 
 Matchmaking:
 
 | Metodo | Ruta | Descripcion |
 |--------|------|-------------|
 | `GET` | `/health` | Health check |
-| `POST` | `/matchmaking/queue/join` | Entrar a cola |
+| `POST` | `/matchmaking/matches` | Crear partida y publicar codigo Relay |
+| `GET` | `/matchmaking/queue/next` | Consumir la siguiente partida disponible |
+| `POST` | `/matchmaking/matches/{match_id}/join` | Unirse a una partida |
 | `GET` | `/matchmaking/matches/{match_id}` | Consultar partida |
-| `POST` | `/matchmaking/matches/{match_id}/relay` | Publicar metadata Relay/Lobby. Solo host |
-| `POST` | `/matchmaking/matches/{match_id}/ready` | Marcar jugador listo |
 | `POST` | `/matchmaking/matches/{match_id}/leave` | Salir de partida |
 
 Los endpoints de matchmaking requieren:
@@ -88,12 +85,11 @@ Authorization: Bearer <access_token>
 
 ## Flujo multiplayer
 
-1. Unity hace login contra `support`.
-2. `support` responde `user_id`, `username` y `access_token`.
-3. Unity llama `matchmaking/queue/join`.
-4. El primer jugador queda como `host`.
-5. Cuando entra otro jugador, la partida pasa a `full` para `maxPlayers=2`.
-6. El host publica metadata de Relay/Lobby en `/relay`.
-7. Cada jugador marca ready en `/ready`.
+1. Unity abre el frontend web en `/unity-login`.
+2. El frontend inicia sesion con Google mediante NextAuth.
+3. NextAuth envia el `id_token` de Google a `support` en `/auth/google`.
+4. `support` valida Google, crea o encuentra el usuario y devuelve `user_id`, `username` y `access_token`.
+5. El frontend redirige al callback local de Unity con el `access_token`.
+6. Unity usa ese token en `Authorization: Bearer <access_token>` para matchmaking y resumenes.
 
 La cola esta en memoria para esta fase. Si el contenedor de `matchmaking` se reinicia, las partidas activas se pierden.
