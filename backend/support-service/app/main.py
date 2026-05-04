@@ -1,32 +1,58 @@
-import os
+import time
+
 from dotenv import load_dotenv
-from fastapi import FastAPI, Request
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
-from fastapi.templating import Jinja2Templates
+from fastapi import FastAPI
+from sqlalchemy import inspect, text
+from sqlalchemy.exc import OperationalError
 from app.connections.postgresql_connection import Base, engine
-from app.models.user import User
 from app.routers.auth import router as auth_router
 from app.routers.match import router as match_router
+from shared.cors import configure_cors
 
 app = FastAPI()
 
 
 load_dotenv()
-
-frontend_origin = os.getenv("FRONTEND_ORIGIN")
-if frontend_origin:
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=[frontend_origin],
-        allow_credentials=True,
-        allow_methods=["*"] ,
-        allow_headers=["*"],
-    )
+configure_cors(app)
 
 app.include_router(auth_router)
 app.include_router(match_router)
 
+
+@app.get("/health")
+def health():
+    return {"status": "ok", "component": "support"}
+
+
+def ensure_users_schema() -> None:
+    inspector = inspect(engine)
+    if not inspector.has_table("users"):
+        return
+
+    columns = {column["name"]: column for column in inspector.get_columns("users")}
+    statements = []
+
+    if "email" not in columns:
+        statements.append("ALTER TABLE users ADD COLUMN email VARCHAR(255)")
+
+    if "username" in columns and engine.dialect.name == "postgresql":
+        statements.append("ALTER TABLE users ALTER COLUMN username TYPE VARCHAR(255)")
+
+    statements.append("CREATE UNIQUE INDEX IF NOT EXISTS ix_users_email ON users (email)")
+
+    with engine.begin() as connection:
+        for statement in statements:
+            connection.execute(text(statement))
+
+
 @app.on_event("startup")
 def on_startup():
-    Base.metadata.create_all(bind=engine)
+    for attempt in range(1, 11):
+        try:
+            Base.metadata.create_all(bind=engine)
+            ensure_users_schema()
+            return
+        except OperationalError:
+            if attempt == 10:
+                raise
+            time.sleep(2)

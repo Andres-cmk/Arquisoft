@@ -35,6 +35,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           if (response.ok) {
             const data = await response.json();
             token.backendUserId = data.user_id;
+            token.backendUsername = data.username;
+            token.backendAccessToken = data.access_token;
           } else {
             console.error("Failed to authenticate with Google on the backend", {
               status: response.status,
@@ -51,6 +53,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
     async session({ session, token }) {
       session.backendUserId = token.backendUserId as number | undefined;
+      session.backendUsername = token.backendUsername as string | undefined;
+      session.backendAccessToken = token.backendAccessToken as string | undefined;
       return session;
     }
   }

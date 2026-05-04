@@ -17,7 +17,13 @@ class GoogleTokenIn(BaseModel):
 class UserResponse(BaseModel):
     user_id: int
     username: str
+    email: str | None = None
     created_at: datetime
 
     class Config:
         from_attributes = True
+
+
+class AuthResponse(UserResponse):
+    access_token: str
+    token_type: str = "bearer"

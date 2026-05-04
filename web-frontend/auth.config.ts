@@ -9,7 +9,11 @@ export const authConfig = {
         authorized({ auth, request: { nextUrl}}) {
             const isLoggedIn = !!auth?.user;
             const isOnDashboard = nextUrl.pathname.startsWith('/dashboard');
+            const isUnityLogin = nextUrl.pathname.startsWith('/unity-login');
+            const isGoogleLogin = nextUrl.pathname.startsWith('/google-login');
             
+            if (isUnityLogin || isGoogleLogin) return true;
+
             if (isOnDashboard) {
                 if (isLoggedIn) return true;
                 return false;

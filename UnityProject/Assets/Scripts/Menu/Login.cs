@@ -24,6 +24,16 @@ public class Login : MonoBehaviour
             backButton.onClick.AddListener(OnBackClicked);
         }
 
+        if (usernameInput != null)
+        {
+            usernameInput.gameObject.SetActive(false);
+        }
+
+        if (passwordInput != null)
+        {
+            passwordInput.gameObject.SetActive(false);
+        }
+
         SetStatus(string.Empty);
     }
 
@@ -49,14 +59,9 @@ public class Login : MonoBehaviour
             return;
         }
 
-        string username = usernameInput != null ? usernameInput.text : string.Empty;
-        string password = passwordInput != null ? passwordInput.text : string.Empty;
+        SetStatus("Abriendo login web...");
 
-        SetStatus("Iniciando sesion...");
-
-        apiClient.Login(
-            username,
-            password,
+        apiClient.LoginWithBrowser(
             OnLoginSuccess,
             OnLoginError
         );
@@ -83,6 +88,11 @@ public class Login : MonoBehaviour
         if (!string.IsNullOrEmpty(response?.message))
         {
             message = response.message;
+        }
+
+        if (!string.IsNullOrEmpty(response?.username))
+        {
+            message += " (" + response.username + ")";
         }
 
         SetStatus(message);

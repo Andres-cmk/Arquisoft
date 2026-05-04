@@ -10,7 +10,7 @@ export default function LoginForm() {
   return (
     <button
       type="button"
-      onClick={() => signIn("google", { callbackUrl })}
+      onClick={() => signIn("google", { callbackUrl }, { prompt: "select_account", max_age: "0" })}
       className="w-full px-6 py-3 bg-primary text-on-primary border-2 border-outline-variant hover:brightness-110 transition-all font-headline-md"
     >
       <i className="fa-brands fa-google"></i> Continuar con Google

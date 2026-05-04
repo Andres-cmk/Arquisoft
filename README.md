@@ -1,172 +1,213 @@
-# RTS ArquiSoft — Monolith
+# RTS ArquiSoft
 
-Backend del juego construido con FastAPI y PostgreSQL, contenerizado con Docker.
+Proyecto RTS con cliente Unity, frontend web para login con Google y backend FastAPI para autenticacion, resumenes y matchmaking.
 
----
+## Estructura
+
+```text
+.
+|-- UnityProject/      # Juego en Unity
+|-- backend/           # FastAPI support + matchmaking + PostgreSQL + RabbitMQ
+|-- web-frontend/      # Next.js + NextAuth Google
+```
 
 ## Requisitos
 
-- [Docker Desktop](https://www.docker.com/products/docker-desktop/)
+- Docker Desktop
+- Node.js 20+ y npm, solo si vas a correr el frontend sin Docker
+- Unity `6000.3.8f1`
+- Dos cuentas de Google si vas a probar multiplayer local con dos instancias
+- Credencial Firebase para guardar resumenes: `backend/support-service/config/serviceAccountKey.json`
 
----
+## Flujo de Login
 
-## Configuración inicial
+El login ya no se hace con usuario y clave dentro de Unity.
 
+1. Unity abre el navegador en `http://localhost:3000/unity-login` con `select_account=1`.
+2. La web usa NextAuth para iniciar sesion con Google.
+3. NextAuth envia el `id_token` de Google al backend `support` en `POST /auth/google`.
+4. El backend valida Google, crea el usuario si no existe y emite el `access_token` interno.
+5. La web redirige al callback local de Unity en `127.0.0.1`.
+6. Unity guarda el token en `AuthSession` y lo usa para matchmaking y resumenes.
 
-### 1. Crear el archivo `.env`
+Para multiplayer local, cada instancia de Unity recibe su propio token aunque el navegador comparta cookies. El flujo fuerza el selector de cuenta de Google para que puedas elegir una cuenta diferente por instancia.
 
-Copia el archivo de ejemplo y rellena los valores:
+## Puertos
 
-```bash
-cp .env.example .env
-```
+- Frontend: `http://localhost:3000`
+- Backend support: `http://localhost:8000`
+- Backend matchmaking: `http://localhost:8001`
+- PostgreSQL desde host: `localhost:5433`
+- RabbitMQ AMQP: `localhost:5672`
+- RabbitMQ UI: `http://localhost:15672` (`guest` / `guest`)
 
-El `.env` debe quedar así:
+## Google OAuth
 
-```
+En Google Cloud Console crea un OAuth Client:
+
+- Application type: `Web application`
+- Authorized JavaScript origins:
+  - `http://localhost:3000`
+- Authorized redirect URIs:
+  - `http://localhost:3000/api/auth/callback/google`
+
+El `Client ID` debe ser el mismo en backend y frontend. El `Client Secret` solo va en el frontend.
+
+## Variables de Entorno
+
+No subas archivos `.env` ni credenciales reales al repositorio.
+
+### `backend/.env`
+
+```env
 POSTGRES_USER=postgres
 POSTGRES_PASSWORD=admin
 POSTGRES_DB=arqui
 DATABASE_URL=postgresql://postgres:admin@db:5432/arqui
+
+FIREBASE_CREDENTIALS=config/serviceAccountKey.json
+AUTH_TOKEN_SECRET=replace-with-a-long-random-secret
+
+# Debe ser el mismo Client ID usado por NextAuth.
+GOOGLE_CLIENT_ID=your-google-client-id.apps.googleusercontent.com
+
+ALLOWED_ORIGINS=http://localhost:3000
 ```
 
-> **Nota:** No cambies `@db` por `@localhost`. Dentro de Docker, `db` es el nombre del contenedor de la base de datos.
+Notas:
 
----
+- `DATABASE_URL` usa host `db` porque el backend corre dentro de Docker Compose.
+- `FIREBASE_CREDENTIALS` es relativo al contenedor `support-service`, por eso el valor local esperado es `config/serviceAccountKey.json`.
+- `AUTH_TOKEN_SECRET` firma el token interno que Unity usa contra `matchmaking`.
 
-## Levantar el proyecto
+### `web-frontend/.env`
 
-```bash
-docker-compose up --build
+```env
+AUTH_SECRET=replace-with-a-long-random-secret
+AUTH_GOOGLE_ID=your-google-client-id.apps.googleusercontent.com
+AUTH_GOOGLE_SECRET=your-google-client-secret
+
+NEXTAUTH_URL=http://localhost:3000
+PY_BACKEND_URL=http://localhost:8000
 ```
 
-Esto levanta dos contenedores:
-- `monolith-api-1` — la API de FastAPI en el puerto `8000`
-- `monolith-db-1` — PostgreSQL en el puerto `5432`
+Notas:
 
-Para correrlo en segundo plano:
+- `AUTH_GOOGLE_ID` debe ser igual a `backend/.env` -> `GOOGLE_CLIENT_ID`.
+- Si corres el frontend con Docker, `web-frontend/docker-compose.yml` usa `PY_BACKEND_DOCKER_URL` y por defecto apunta a `http://host.docker.internal:8000`, que es lo correcto para llamar al backend desde el contenedor web.
+- Para generar secretos locales puedes usar PowerShell:
 
-```bash
+```powershell
+[Convert]::ToBase64String((1..32 | ForEach-Object { Get-Random -Maximum 256 }))
+```
+
+## Levantar Backend
+
+Desde la raiz del repo:
+
+```powershell
+cd backend
 docker compose up --build -d
 ```
 
-Para detenerlo:
+Verifica:
 
-```bash
+```powershell
+Invoke-WebRequest -UseBasicParsing http://localhost:8000/health
+Invoke-WebRequest -UseBasicParsing http://localhost:8001/health
+```
+
+Detener:
+
+```powershell
 docker compose down
 ```
 
----
+## Levantar Frontend
 
-## Verificar que funciona
+Opcion recomendada con Docker:
 
-### API
-
-Abre en el navegador:
-
-```
-http://localhost:8000/docs
+```powershell
+cd web-frontend
+docker compose up --build -d
 ```
 
-Deberías ver la documentación interactiva de FastAPI con los endpoints disponibles.
+Opcion local con npm:
 
-### Endpoints disponibles
-
-| Método | Ruta | Descripción |
-|--------|------|-------------|
-| `POST` | `/auth/users` | Crear un usuario |
-| `POST` | `/auth/login` | Iniciar sesión |
-| `GET` | `/home` | Página de registro |
-
----
-
-## Probar con Postman
-
-### Crear usuario
-
-- **Método:** `POST`
-- **URL:** `http://localhost:8000/auth/users`
-- **Body (JSON):**
-
-```json
-{
-    "username": "testuser",
-    "password": "123456"
-}
+```powershell
+cd web-frontend
+npm ci
+npm run dev
 ```
 
-### Iniciar sesión
+Abre:
 
-- **Método:** `POST`
-- **URL:** `http://localhost:8000/auth/login`
-- **Body (JSON):**
-
-```json
-{
-    "username": "testuser",
-    "password": "123456"
-}
+```text
+http://localhost:3000
 ```
 
----
+## Abrir el Juego en Unity
 
-## Verificar la base de datos
+1. Abre Unity Hub.
+2. Agrega y abre `UnityProject/`.
+3. Usa Unity `6000.3.8f1`.
+4. Asegurate de tener corriendo:
+   - Backend support en `localhost:8000`
+   - Backend matchmaking en `localhost:8001`
+   - Frontend en `localhost:3000`
+5. Abre la escena de menu/login y presiona `Ingresar`.
+6. El navegador debe mostrar selector de cuenta de Google.
+7. Al terminar, Unity debe mostrar `Login correcto (...)`.
 
-Para conectarte a la base de datos del contenedor y revisar los datos:
+## Probar Multiplayer Local
 
-```bash
-docker exec -it monolith-db-1 psql -U postgres -d arqui
+1. Corre backend y frontend.
+2. Abre el proyecto en Unity Editor.
+3. Haz `Build & Run` para una segunda instancia del juego.
+4. En el Editor, presiona `Ingresar` y elige la cuenta Google A.
+5. En el Build, presiona `Ingresar` y elige la cuenta Google B.
+6. Entra al menu multiplayer:
+   - Una instancia crea partida.
+   - La otra instancia busca/unirse a partida.
+
+Cada instancia conserva su propio `access_token` en memoria. Si ves el dashboard web en una pestana vieja, cierrala y vuelve a presionar `Ingresar` desde Unity.
+
+## Endpoints Principales
+
+Support (`localhost:8000`):
+
+- `GET /health`
+- `POST /auth/google`
+- `POST /support/session-summary`
+- `POST /match/session-summary` ruta legacy
+
+Matchmaking (`localhost:8001`):
+
+- `GET /health`
+- `POST /matchmaking/matches`
+- `GET /matchmaking/queue/next`
+- `POST /matchmaking/matches/{match_id}/join`
+- `GET /matchmaking/matches/{match_id}`
+- `POST /matchmaking/matches/{match_id}/leave`
+
+Los endpoints de matchmaking requieren:
+
+```http
+Authorization: Bearer <access_token>
 ```
 
-Comandos útiles dentro de psql:
+## Troubleshooting
 
-```sql
--- Ver las tablas creadas
-\dt
+- `Error 401: invalid_client`: el Client ID/Secret de Google esta mal configurado o el redirect URI no coincide exactamente.
+- `Login incompleto`: Google autentico, pero NextAuth no pudo obtener token interno desde backend. Revisa que `support` este arriba y que `GOOGLE_CLIENT_ID` sea igual a `AUTH_GOOGLE_ID`.
+- El navegador abre `Dashboard` en vez de selector de cuenta: cierra la pestana vieja y vuelve a iniciar desde Unity. El flujo actual usa `/google-login` con `prompt=select_account` y `max_age=0`.
+- El contenedor web no alcanza al backend: usa Docker Compose actualizado; debe resolver `PY_BACKEND_DOCKER_URL` como `http://host.docker.internal:8000`.
+- `support` no arranca: revisa que PostgreSQL este `healthy` y que exista `backend/support-service/config/serviceAccountKey.json`.
 
--- Ver los usuarios registrados
-SELECT * FROM users;
+## Archivos que no se deben subir
 
--- Salir
-\q
-```
-
----
-
-## Conexión desde Unity
-
-La URL base para conectarse desde Unity es:
-
-```
-http://localhost:8000
-```
-
-No es necesario cambiar nada mientras se desarrolle en la misma máquina. Al desplegar en un servidor, reemplazar `localhost` por la IP o dominio del servidor.
-
----
-
-## Estructura del proyecto
-
-```
-Monolith/
-├── app/
-│   ├── connections/
-│   │   └── postgresql_connection.py
-│   ├── models/
-│   │   └── user.py
-│   ├── routers/
-│   │   └── auth.py
-│   ├── schemas/
-│   │   └── user_schemas.py
-│   └── main.py
-├── static/
-│   └── styles.css
-├── templates/
-│   └── home.html
-├── .env               # No subir al repositorio
-├── .env.example
-├── .gitignore
-├── docker-compose.yml
-├── Dockerfile
-└── requirements.txt
-```
+- `backend/.env`
+- `web-frontend/.env`
+- `backend/support-service/config/serviceAccountKey.json`
+- `UnityProject/Build&Run/`
+- `UnityProject/Library/`, `Temp/`, `Obj/`, `Build/`, `Builds/`, `Logs/`
