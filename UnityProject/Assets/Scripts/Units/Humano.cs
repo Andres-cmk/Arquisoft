@@ -35,7 +35,7 @@ public abstract class Humano : MonoBehaviour
     protected virtual void Start()
     {
         rb = GetComponent<Rigidbody>();
-        anim = GetComponent<Animator>();           
+        anim = GetComponent<Animator>();
         spriteRenderer = GetComponent<SpriteRenderer>();
 
         navMesh = GetComponent<NavMeshAgent>();
@@ -160,19 +160,19 @@ public abstract class Humano : MonoBehaviour
         resourceTarget = targetResource;
         resourceActionPending = targetResource != null;
 
-        if(navMesh == null)
+        if (navMesh == null)
         {
             Debug.LogWarning($"[UNIDAD] {name} no tiene NavMeshAgent. No se puede ejecutar orden de movimiento.");
             return;
         }
-        else if(this.GetComponentInChildren<Villager>() == null && resourceTarget != null)
+        else if (this.GetComponentInChildren<Villager>() == null && resourceTarget != null)
         {
             Debug.Log($"<color=Red>[UNIDAD]</color> {name} no es un Villager y no puede recolectar recursos. Orden de movimiento ignorada.");
             resourceTarget = null;
             resourceActionPending = false;
             return;
         }
-        else if(this.GetComponentInChildren<Warrior>() == null && targetHuman != null)
+        else if (this.GetComponentInChildren<Warrior>() == null && targetHuman != null)
         {
             Debug.Log($"<color=Red>[UNIDAD]</color> {name} no es un Warrior y no puede atacar unidades. Orden de movimiento ignorada.");
             return;
@@ -260,7 +260,8 @@ public abstract class Humano : MonoBehaviour
         this.health -= damage;
         Debug.Log($"{name} recibió {damage} daño. Salud actual: {this.health}");
 
-        if(health <= 0f){
+        if (health <= 0f)
+        {
             Debug.Log($"<color=Blue>[Derrota]</color> {name} ha sido derrotada.");
             Die();
             return false;

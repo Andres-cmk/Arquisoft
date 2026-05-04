@@ -349,4 +349,4 @@ MonoBehaviour:
   enableKeyboardDebugMovement: 0
   rbMass: 20
   rbDrag: 8
-  harvestSpeed: 1
+  harvestSpeed: 5

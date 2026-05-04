@@ -14,31 +14,31 @@ public class Villager : Humano
         // Valores por defecto para Villager
         health = 60f;
         speed = 5f;
-        
+
         base.Start();
     }
 
     protected override void Update()
     {
         base.Update();
-        
+
         // Lógica específica de Villager aquí
     }
 
 
     public override void SetMoveTargetFromNetwork(Vector3 target, ResourceNode targetResource = null, Humano targetHuman = null)
     {
-        
+
         moveTarget = target;
         resourceTarget = targetResource;
         resourceActionPending = targetResource != null;
 
-        if(navMesh == null)
+        if (navMesh == null)
         {
             Debug.LogWarning($"[UNIDAD] {name} no tiene NavMeshAgent. No se puede ejecutar orden de movimiento.");
             return;
         }
-        else if(this.GetComponentInChildren<Warrior>() == null && targetHuman != null)
+        else if (this.GetComponentInChildren<Warrior>() == null && targetHuman != null)
         {
             Debug.Log($"<color=Red>[UNIDAD]</color> {name} no es un Warrior y no puede atacar unidades. Orden de movimiento ignorada.");
             return;
@@ -68,7 +68,7 @@ public class Villager : Humano
             }
             return true;
         }
-        return false;        
+        return false;
     }
 
     protected override void CompleteResourceAction()
@@ -82,7 +82,7 @@ public class Villager : Humano
         {
             resourceTarget.FarmResource();
         }
-    }    
+    }
 
     /// <summary>
     /// Método para mejorar la velocidad de recolección
