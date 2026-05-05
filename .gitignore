@@ -157,3 +157,10 @@ UnityProject/.vs/
 UnityProject/.vsconfig
 UnityProject/Build&Run/
 Monolith/.envMonolith/
+
+# -----------------------------
+# Firebase / Secrets
+# -----------------------------
+backend/**/firebase-credentials.json
+backend/**/serviceAccountKey.json
+backend/**/accountKey.json
