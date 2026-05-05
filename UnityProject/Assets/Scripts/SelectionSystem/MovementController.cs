@@ -85,6 +85,15 @@ public class MovementController : MonoBehaviour
             if (objetivoPrioritario.Category == SelectableEntity.SelectableCategory.EnemyUnit)
             {
                 Debug.Log($"<color=red>[ATAQUE]</color> Ataque a unidad enemiga: {objetivoPrioritario.name}");
+
+                Humano targetHuman = objetivoPrioritario.GetComponent<Humano>();
+
+                if (targetHuman != null)
+                {
+                    int movedUnits = OrdenarMovimientoUnidades(puntoDestino, null, targetHuman);
+                    Debug.Log($"<color=red>[ATAQUE]</color> Ordenado movimiento de unidades a unidad enemiga: {objetivoPrioritario.name}");
+                }
+
             }
             else if (objetivoPrioritario.Category == SelectableEntity.SelectableCategory.EnemyBuilding)
             {
@@ -92,7 +101,7 @@ public class MovementController : MonoBehaviour
             }
             else if (objetivoPrioritario.Category == SelectableEntity.SelectableCategory.Ground)
             {
-                int movedUnits = OrdenarMovimientoUnidades(puntoDestino);
+                int movedUnits = OrdenarMovimientoUnidades(puntoDestino, null, null);
                 Debug.Log($"<color=cyan>[MOVIMIENTO]</color> Acción de movimiento para {movedUnits} unidades hacia {puntoDestino}");
             }
             else if (objetivoPrioritario.Category == SelectableEntity.SelectableCategory.Building)
@@ -121,7 +130,7 @@ public class MovementController : MonoBehaviour
                     string action = resource != null ? resource.GetActionName() : "RECOLECTAR";
                     Debug.Log($"<color=yellow>[ACTION]</color> Orden directa: {action} en {objetivoPrioritario.name}.");
 
-                    int movedUnits = OrdenarMovimientoUnidades(puntoDestino, resource);
+                    int movedUnits = OrdenarMovimientoUnidades(puntoDestino, resource, null);
                     Debug.Log($"<color=cyan>[MOVIMIENTO]</color> Acción de movimiento para {movedUnits} unidades hacia {puntoDestino}");
                 }
                 else{
@@ -131,7 +140,7 @@ public class MovementController : MonoBehaviour
         }
     }
 
-    private int OrdenarMovimientoUnidades(Vector3 destino, ResourceNode resourceTarget = null)
+    private int OrdenarMovimientoUnidades(Vector3 destino, ResourceNode resourceTarget = null, Humano targetHuman = null)
     {
 
         if (selectionSystem == null) return 0;
@@ -151,22 +160,22 @@ public class MovementController : MonoBehaviour
             SelectableEntity selectable = SelectionTargetResolver.GetSelectableFromObject(selected);
             if (selectable == null || selectable.Category != SelectableEntity.SelectableCategory.Unit) continue;
 
-            abr unitMovement = selected.GetComponent<abr>();
+            Humano unitMovement = selected.GetComponent<Humano>();
             if (unitMovement == null)
             {
-                unitMovement = selected.GetComponentInChildren<abr>();
+                unitMovement = selected.GetComponentInChildren<Humano>();
             }
 
             if (unitMovement != null)
             {
-                unitMovement.SetMoveTarget(destino, resourceTarget);
+                unitMovement.SetMoveTarget(destino, resourceTarget, targetHuman);
                 movedCount++;
             }
         }
 
         if (movedCount == 0)
         {
-            Debug.LogWarning("[MOVIMIENTO] No se encontró script abr en unidades seleccionadas para mover.");
+            Debug.LogWarning("[MOVIMIENTO] No se encontró componente Humano en unidades seleccionadas para mover.");
         }
 
         return movedCount;

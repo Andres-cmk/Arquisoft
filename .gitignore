@@ -65,6 +65,8 @@ backend/node_modules/
 backend/.env
 backend/.env.*
 !backend/.env.example
+backend/config/accountKey.json
+backend/support-service/config/accountKey.json
 backend/dev.db
 backend/dev.db-journal
 backend/dev.db-shm

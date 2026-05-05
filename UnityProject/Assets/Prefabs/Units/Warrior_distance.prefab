@@ -103,14 +103,14 @@ GameObject:
   - component: {fileID: 6353082811665675183}
   - component: {fileID: 5149332024819842299}
   - component: {fileID: -5275021948664726807}
-  - component: {fileID: -7925896500568973175}
   - component: {fileID: -8972922680126915346}
-  - component: {fileID: 2309209526031926518}
   - component: {fileID: -3932867734192722860}
   - component: {fileID: -3741761324415360119}
-  - component: {fileID: -3100251058453988881}
+  - component: {fileID: 7163313429345512064}
+  - component: {fileID: 889574612740773049}
+  - component: {fileID: 234653122649040263}
   m_Layer: 0
-  m_Name: villager
+  m_Name: Warrior_distance
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -125,7 +125,7 @@ Transform:
   m_GameObject: {fileID: 8897307991164268030}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0.38268343, z: 0, w: 0.92387956}
-  m_LocalPosition: {x: 5, y: 1.65, z: 5}
+  m_LocalPosition: {x: 20.8, y: 1.64998, z: 9.42}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -181,7 +181,7 @@ SpriteRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 0
   m_MaskInteraction: 0
-  m_Sprite: {fileID: -1145433804, guid: 45fdc8f2affc56245b391e651a4463ea, type: 3}
+  m_Sprite: {fileID: 1881016951, guid: 526acd3136dd8cc4095034349dd80f04, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_FlipX: 0
   m_FlipY: 0
@@ -241,28 +241,6 @@ CapsuleCollider:
   m_Height: 3.2
   m_Direction: 1
   m_Center: {x: 0, y: 0, z: 0}
---- !u!95 &-7925896500568973175
-Animator:
-  serializedVersion: 7
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 8897307991164268030}
-  m_Enabled: 1
-  m_Avatar: {fileID: 0}
-  m_Controller: {fileID: 9100000, guid: d20e6fc4a13f28441baab53c20c0874a, type: 2}
-  m_CullingMode: 0
-  m_UpdateMode: 0
-  m_ApplyRootMotion: 0
-  m_LinearVelocityBlending: 0
-  m_StabilizeFeet: 0
-  m_AnimatePhysics: 0
-  m_WarningMessage: 
-  m_HasTransformHierarchy: 1
-  m_AllowConstantClipSamplingOptimization: 1
-  m_KeepAnimatorStateOnDisable: 0
-  m_WriteDefaultValuesOnDisable: 0
 --- !u!114 &-8972922680126915346
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -276,25 +254,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::FowRevealer
   visionRadius: 3
---- !u!114 &2309209526031926518
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 8897307991164268030}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 456f28565353fa6479883b0fc1f4fb51, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: '::'
-  speed: 8
-  stoppingDistance: 0.1
-  stuckTimeout: 1.2
-  progressEpsilon: 0.01
-  enableKeyboardDebugMovement: 0
-  rbMass: 20
-  rbDrag: 8
 --- !u!114 &-3932867734192722860
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -326,7 +285,29 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2a46a474ee318214a82ef21e94e736c8, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::MovementController
---- !u!195 &-3100251058453988881
+--- !u!95 &7163313429345512064
+Animator:
+  serializedVersion: 7
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8897307991164268030}
+  m_Enabled: 1
+  m_Avatar: {fileID: 0}
+  m_Controller: {fileID: 9100000, guid: dc16dafc0ebf007458d086248c06a764, type: 2}
+  m_CullingMode: 0
+  m_UpdateMode: 0
+  m_ApplyRootMotion: 0
+  m_LinearVelocityBlending: 0
+  m_StabilizeFeet: 0
+  m_AnimatePhysics: 0
+  m_WarningMessage: 
+  m_HasTransformHierarchy: 1
+  m_AllowConstantClipSamplingOptimization: 1
+  m_KeepAnimatorStateOnDisable: 0
+  m_WriteDefaultValuesOnDisable: 0
+--- !u!195 &889574612740773049
 NavMeshAgent:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -335,7 +316,7 @@ NavMeshAgent:
   m_GameObject: {fileID: 8897307991164268030}
   m_Enabled: 1
   m_AgentTypeID: 0
-  m_Radius: 2
+  m_Radius: 1
   m_Speed: 3.5
   m_Acceleration: 8
   avoidancePriority: 50
@@ -348,3 +329,32 @@ NavMeshAgent:
   m_BaseOffset: 2
   m_WalkableMask: 4294967295
   m_ObstacleAvoidanceType: 4
+--- !u!114 &234653122649040263
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8897307991164268030}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1c8f4022cc9fc054180a70d2650b0531, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Warrior_Distance
+  health: 100
+  speed: 5
+  stoppingDistance: 2
+  stuckTimeout: 1.2
+  progressEpsilon: 0.01
+  enableKeyboardDebugMovement: 0
+  rbMass: 20
+  rbDrag: 8
+  attackRange: 1
+  attackPower: 25
+  attackCooldown: 1
+  armor: 5
+  currentTarget: {fileID: 0}
+  rangedDamageMultiplier: 1.2
+  projectileSpeed: 20
+  projectilePrefab: {fileID: 8837346876005266810, guid: 17423cd771f30e8459183c653437c611, type: 3}
+  shootPoint: {fileID: 0}

@@ -1,4 +1,4 @@
-﻿using System.Collections;
+using System.Collections;
 using System.Collections.Generic;
 using Unity.Collections;
 using Unity.Netcode;
@@ -214,7 +214,7 @@ public class RtsNetworkCommandBus : MonoBehaviour
         return true;
     }
 
-    public static bool TryHandleResourceArrival(abr unit, ResourceNode resource)
+    public static bool TryHandleResourceArrival(Humano unit, ResourceNode resource)
     {
         if (!IsMultiplayerActive) return false;
         if (!IsServer) return true;
@@ -324,7 +324,7 @@ public class RtsNetworkCommandBus : MonoBehaviour
 
         foreach (int unitId in unitIds)
         {
-            if (RtsEntityRegistry.TryGetComponent(unitId, out abr unit))
+            if (RtsEntityRegistry.TryGetComponent(unitId, out Humano unit))
                 unit.SetMoveTargetFromNetwork(destination, resource);
         }
     }

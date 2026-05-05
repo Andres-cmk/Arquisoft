@@ -78,7 +78,7 @@ public class RtsMultiplayerWorldInitializer : MonoBehaviour
         AssignResources();
 
         EdificioCentral[] baseBuildings = FindObjectsByType<EdificioCentral>(FindObjectsSortMode.None);
-        abr[] baseUnits = FindObjectsByType<abr>(FindObjectsSortMode.None);
+        Humano[] baseUnits = FindObjectsByType<Humano>(FindObjectsSortMode.None);
 
         AssignStartingBuildings(baseBuildings, 0, SlotOffsets[0]);
         AssignStartingUnits(baseUnits, 0, SlotOffsets[0]);
@@ -131,7 +131,7 @@ public class RtsMultiplayerWorldInitializer : MonoBehaviour
         }
     }
 
-    void AssignStartingUnits(abr[] units, int ownerSlot, Vector3 offset)
+    void AssignStartingUnits(Humano[] units, int ownerSlot, Vector3 offset)
     {
         for (int i = 0; i < units.Length; i++)
         {
@@ -162,11 +162,11 @@ public class RtsMultiplayerWorldInitializer : MonoBehaviour
         }
     }
 
-    void CloneStartingUnits(abr[] templates, int ownerSlot, Vector3 offset)
+    void CloneStartingUnits(Humano[] templates, int ownerSlot, Vector3 offset)
     {
         for (int i = 0; i < templates.Length; i++)
         {
-            abr template = templates[i];
+            Humano template = templates[i];
             if (template == null)
             {
                 continue;
@@ -197,7 +197,7 @@ public class RtsMultiplayerWorldInitializer : MonoBehaviour
         int slot,
         Vector3 baseCenter,
         EdificioCentral[] baseBuildings,
-        abr[] baseUnits,
+        Humano[] baseUnits,
         ResourceNode[] resources,
         List<Vector3> occupiedBaseCenters)
     {
@@ -233,7 +233,7 @@ public class RtsMultiplayerWorldInitializer : MonoBehaviour
         Vector3 candidateOffset,
         Vector3 baseCenter,
         EdificioCentral[] baseBuildings,
-        abr[] baseUnits,
+        Humano[] baseUnits,
         ResourceNode[] resources,
         List<Vector3> occupiedBaseCenters)
     {
@@ -260,7 +260,7 @@ public class RtsMultiplayerWorldInitializer : MonoBehaviour
             }
         }
 
-        foreach (abr unit in baseUnits)
+        foreach (Humano unit in baseUnits)
         {
             if (unit == null)
             {
@@ -324,7 +324,7 @@ public class RtsMultiplayerWorldInitializer : MonoBehaviour
             && position.z <= maxZ - padding;
     }
 
-    Vector3 CalculateGroupCenter(EdificioCentral[] buildings, abr[] units)
+    Vector3 CalculateGroupCenter(EdificioCentral[] buildings, Humano[] units)
     {
         Vector3 sum = Vector3.zero;
         int count = 0;
@@ -340,7 +340,7 @@ public class RtsMultiplayerWorldInitializer : MonoBehaviour
             count++;
         }
 
-        foreach (abr unit in units)
+        foreach (Humano unit in units)
         {
             if (unit == null)
             {
