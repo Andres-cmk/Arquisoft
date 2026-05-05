@@ -48,6 +48,7 @@ public class ApiClient : MonoBehaviour
         public LoginResponse response;
     }
 
+    public static ApiClient GetOrCreate()
     {
         if (Instance != null)
         {
@@ -55,6 +56,8 @@ public class ApiClient : MonoBehaviour
         }
 
         Instance = FindFirstObjectByType<ApiClient>();
+        if (Instance != null)
+        {
             return Instance;
         }
 

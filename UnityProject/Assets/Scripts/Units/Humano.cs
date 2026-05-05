@@ -156,20 +156,6 @@ public abstract class Humano : MonoBehaviour
 
     public virtual void SetMoveTargetFromNetwork(Vector3 target, ResourceNode targetResource = null, Humano targetHuman = null)
     {
-        if (RtsNetworkCommandBus.IsMultiplayerActive)
-        {
-            RtsNetworkCommandBus.GetOrCreate().RequestMoveSelectedUnits(
-                new System.Collections.Generic.List<GameObject> { gameObject },
-                target,
-                targetResource);
-            return;
-        }
-
-        SetMoveTargetFromNetwork(target, targetResource);
-    }
-
-    public void SetMoveTargetFromNetwork(Vector3 target, ResourceNode targetResource = null)
-    {
         moveTarget = target;
         resourceTarget = targetResource;
         resourceActionPending = targetResource != null;
