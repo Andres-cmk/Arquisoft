@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -79,6 +80,8 @@ public class RtsMultiplayerWorldInitializer : MonoBehaviour
 
         EdificioCentral[] baseBuildings = FindObjectsByType<EdificioCentral>(FindObjectsSortMode.None);
         Humano[] baseUnits = FindObjectsByType<Humano>(FindObjectsSortMode.None);
+        SortStartingBuildings(baseBuildings);
+        SortStartingUnits(baseUnits);
 
         AssignStartingBuildings(baseBuildings, 0, SlotOffsets[0]);
         AssignStartingUnits(baseUnits, 0, SlotOffsets[0]);
@@ -115,6 +118,90 @@ public class RtsMultiplayerWorldInitializer : MonoBehaviour
         {
             RtsEntityRegistry.GetOrAdd(resource.gameObject, RtsEntityRegistry.BuildResourceId(resource), -1, RtsEntityKind.Resource);
         }
+    }
+
+    void SortStartingBuildings(EdificioCentral[] buildings)
+    {
+        Array.Sort(buildings, CompareStartingBuildings);
+    }
+
+    void SortStartingUnits(Humano[] units)
+    {
+        Array.Sort(units, CompareStartingUnits);
+    }
+
+    int CompareStartingBuildings(EdificioCentral left, EdificioCentral right)
+    {
+        if (ReferenceEquals(left, right)) return 0;
+        if (left == null) return 1;
+        if (right == null) return -1;
+
+        int result = CompareInts(
+            (int)RtsUnitTypeUtility.GetUnitType(left.unidadPrefab),
+            (int)RtsUnitTypeUtility.GetUnitType(right.unidadPrefab));
+        if (result != 0) return result;
+
+        return CompareTransformKeys(left.transform, right.transform);
+    }
+
+    int CompareStartingUnits(Humano left, Humano right)
+    {
+        if (ReferenceEquals(left, right)) return 0;
+        if (left == null) return 1;
+        if (right == null) return -1;
+
+        int result = CompareInts(
+            (int)RtsUnitTypeUtility.GetUnitType(left),
+            (int)RtsUnitTypeUtility.GetUnitType(right));
+        if (result != 0) return result;
+
+        return CompareTransformKeys(left.transform, right.transform);
+    }
+
+    int CompareTransformKeys(Transform left, Transform right)
+    {
+        Vector3 leftPosition = left.position;
+        Vector3 rightPosition = right.position;
+
+        int result = CompareInts(QuantizePosition(leftPosition.x), QuantizePosition(rightPosition.x));
+        if (result != 0) return result;
+
+        result = CompareInts(QuantizePosition(leftPosition.z), QuantizePosition(rightPosition.z));
+        if (result != 0) return result;
+
+        result = CompareInts(QuantizePosition(leftPosition.y), QuantizePosition(rightPosition.y));
+        if (result != 0) return result;
+
+        return string.Compare(BuildHierarchyPath(left), BuildHierarchyPath(right), StringComparison.Ordinal);
+    }
+
+    int QuantizePosition(float value)
+    {
+        return Mathf.RoundToInt(value * 1000f);
+    }
+
+    int CompareInts(int left, int right)
+    {
+        if (left == right) return 0;
+        return left < right ? -1 : 1;
+    }
+
+    string BuildHierarchyPath(Transform target)
+    {
+        if (target == null)
+        {
+            return string.Empty;
+        }
+
+        string path = target.name;
+        Transform current = target.parent;
+        while (current != null)
+        {
+            path = current.name + "/" + path;
+            current = current.parent;
+        }
+
+        return path;
     }
 
     void AssignStartingBuildings(EdificioCentral[] buildings, int ownerSlot, Vector3 offset)

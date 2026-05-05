@@ -402,8 +402,9 @@ public class RtsNetworkCommandBus : MonoBehaviour
 
         Vector3 spawnPosition = building.GetSpawnPosition();
         Quaternion spawnRotation = building.GetSpawnRotation();
-        ApplyUnitSpawned(buildingId, newUnitId, ownerSlot, spawnPosition, spawnRotation);
-        BroadcastUnitSpawned(buildingId, newUnitId, ownerSlot, spawnPosition, spawnRotation);
+        RtsUnitType unitType = building.GetProducedUnitType();
+        ApplyUnitSpawned(buildingId, newUnitId, ownerSlot, unitType, spawnPosition, spawnRotation);
+        BroadcastUnitSpawned(buildingId, newUnitId, ownerSlot, unitType, spawnPosition, spawnRotation);
     }
 
     void BroadcastProductionStarted(int buildingId)
@@ -429,7 +430,13 @@ public class RtsNetworkCommandBus : MonoBehaviour
             building.BeginNetworkProductionVisual();
     }
 
-    void BroadcastUnitSpawned(int buildingId, int newUnitId, int ownerSlot, Vector3 spawnPosition, Quaternion spawnRotation)
+    void BroadcastUnitSpawned(
+        int buildingId,
+        int newUnitId,
+        int ownerSlot,
+        RtsUnitType unitType,
+        Vector3 spawnPosition,
+        Quaternion spawnRotation)
     {
         FastBufferWriter writer = new FastBufferWriter(128, Allocator.Temp);
         try
@@ -437,6 +444,7 @@ public class RtsNetworkCommandBus : MonoBehaviour
             writer.WriteValueSafe(buildingId);
             writer.WriteValueSafe(newUnitId);
             writer.WriteValueSafe(ownerSlot);
+            writer.WriteValueSafe((int)unitType);
             WriteVector3(ref writer, spawnPosition);
             WriteQuaternion(ref writer, spawnRotation);
             NetworkManager.Singleton.CustomMessagingManager.SendNamedMessageToAll(
@@ -451,15 +459,23 @@ public class RtsNetworkCommandBus : MonoBehaviour
         reader.ReadValueSafe(out int buildingId);
         reader.ReadValueSafe(out int newUnitId);
         reader.ReadValueSafe(out int ownerSlot);
+        reader.ReadValueSafe(out int rawUnitType);
+        RtsUnitType unitType = ParseUnitType(rawUnitType);
         Vector3 spawnPosition = ReadVector3(ref reader);
         Quaternion spawnRotation = ReadQuaternion(ref reader);
-        ApplyUnitSpawned(buildingId, newUnitId, ownerSlot, spawnPosition, spawnRotation);
+        ApplyUnitSpawned(buildingId, newUnitId, ownerSlot, unitType, spawnPosition, spawnRotation);
     }
 
-    void ApplyUnitSpawned(int buildingId, int newUnitId, int ownerSlot, Vector3 spawnPosition, Quaternion spawnRotation)
+    void ApplyUnitSpawned(
+        int buildingId,
+        int newUnitId,
+        int ownerSlot,
+        RtsUnitType unitType,
+        Vector3 spawnPosition,
+        Quaternion spawnRotation)
     {
         if (RtsEntityRegistry.TryGetComponent(buildingId, out EdificioCentral building))
-            building.SpawnProducedUnitFromNetwork(newUnitId, ownerSlot, spawnPosition, spawnRotation);
+            building.SpawnProducedUnitFromNetwork(newUnitId, ownerSlot, spawnPosition, spawnRotation, unitType);
     }
 
     // ── Serialización ─────────────────────────────────────────────────────────
@@ -520,5 +536,15 @@ public class RtsNetworkCommandBus : MonoBehaviour
         reader.ReadValueSafe(out float z);
         reader.ReadValueSafe(out float w);
         return new Quaternion(x, y, z, w);
+    }
+
+    static RtsUnitType ParseUnitType(int rawValue)
+    {
+        if (rawValue < (int)RtsUnitType.Unknown || rawValue > (int)RtsUnitType.WarriorDistance)
+        {
+            return RtsUnitType.Unknown;
+        }
+
+        return (RtsUnitType)rawValue;
     }
 }

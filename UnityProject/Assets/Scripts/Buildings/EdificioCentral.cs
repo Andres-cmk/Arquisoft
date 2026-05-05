@@ -97,6 +97,11 @@ public class EdificioCentral : MonoBehaviour
         return puntoSpawn != null && unidadPrefab != null ? puntoSpawn.rotation : (unidadPrefab != null ? unidadPrefab.transform.rotation : transform.rotation);
     }
 
+    public RtsUnitType GetProducedUnitType()
+    {
+        return RtsUnitTypeUtility.GetUnitType(unidadPrefab);
+    }
+
     public void BeginNetworkProductionVisual()
     {
         if (networkProductionRoutine != null)
@@ -132,7 +137,12 @@ public class EdificioCentral : MonoBehaviour
         }
     }
 
-    public GameObject SpawnProducedUnitFromNetwork(int entityId, int ownerSlot, Vector3 spawnPosition, Quaternion spawnRotation)
+    public GameObject SpawnProducedUnitFromNetwork(
+        int entityId,
+        int ownerSlot,
+        Vector3 spawnPosition,
+        Quaternion spawnRotation,
+        RtsUnitType expectedUnitType = RtsUnitType.Unknown)
     {
         if (RtsEntityRegistry.TryGetEntity(entityId, out RtsNetworkEntity existingUnit))
         {
@@ -153,12 +163,35 @@ public class EdificioCentral : MonoBehaviour
             return null;
         }
 
+        ValidateProducedUnitType(expectedUnitType);
+
         GameObject unit = Instantiate(unidadPrefab, spawnPosition, spawnRotation);
         RtsEntityRegistry.GetOrAdd(unit, entityId, ownerSlot, RtsEntityKind.Unit);
 
         ResetProductionState();
         Debug.Log("<color=yellow>[EDIFICIO]</color> Unidad creada por host multiplayer.");
         return unit;
+    }
+
+    void ValidateProducedUnitType(RtsUnitType expectedUnitType)
+    {
+        if (expectedUnitType == RtsUnitType.Unknown)
+        {
+            return;
+        }
+
+        RtsUnitType localUnitType = GetProducedUnitType();
+        if (localUnitType == RtsUnitType.Unknown || localUnitType == expectedUnitType)
+        {
+            return;
+        }
+
+        Debug.LogError(
+            "[MULTIPLAYER] Tipo de unidad producida desincronizado. Host espera "
+            + RtsUnitTypeUtility.GetDisplayName(expectedUnitType)
+            + " pero este edificio produciria "
+            + RtsUnitTypeUtility.GetDisplayName(localUnitType)
+            + ".");
     }
 
     private void ResetProductionState()
