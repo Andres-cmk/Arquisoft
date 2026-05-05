@@ -147,7 +147,8 @@ public abstract class Humano : MonoBehaviour
             RtsNetworkCommandBus.GetOrCreate().RequestMoveSelectedUnits(
                 new System.Collections.Generic.List<GameObject> { gameObject },
                 target,
-                targetResource);
+                targetResource,
+                targetHuman);
             return;
         }
 

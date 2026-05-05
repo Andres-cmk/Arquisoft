@@ -38,6 +38,14 @@ public class Warrior_Mele : Warrior
         float finalDamage = attackPower * meleeDamageMultiplier;
         
         Humano targetUnit = currentTarget.GetComponent<Humano>();
+        if (targetUnit == null)
+        {
+            targetUnit = currentTarget.GetComponentInParent<Humano>();
+        }
+        if (targetUnit == null)
+        {
+            targetUnit = currentTarget.GetComponentInChildren<Humano>();
+        }
         
         if (targetUnit != null)
         {

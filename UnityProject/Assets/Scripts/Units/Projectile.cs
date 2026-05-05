@@ -31,10 +31,14 @@ public class Projectile : MonoBehaviour
 
         Debug.Log($"<color=Red>[DEBUG]</color>Llamada a OnCollisionEnter.");
         // No impactar con el que dispara
-        if (collision.gameObject == shooter.gameObject) return;
+        if (shooter != null && collision.gameObject == shooter.gameObject) return;
 
         // Aplicar daño a enemigos
         Humano targetHuman = collision.gameObject.GetComponent<Humano>();
+        if (targetHuman == null)
+        {
+            targetHuman = collision.gameObject.GetComponentInParent<Humano>();
+        }
         if (targetHuman != null && targetHuman != shooter)
         {
             targetHuman.TakeDamage(damage);

@@ -42,9 +42,9 @@ public class Warrior_Distance : Warrior
 
         if (navMesh.pathPending) return;
 
-        if (navMesh.remainingDistance > attackRange) return;
+        if (GetCurrentTargetDistance() > GetEffectiveAttackRange()) return;
 
-        Debug.Log($"<color=red>[debug]</color> La condicion de distanci es: {navMesh.remainingDistance > attackRange} y las diastancia es {navMesh.remainingDistance} tiene path,pending. {navMesh.pathPending}");
+        Debug.Log($"<color=red>[debug]</color> Distancia al objetivo: {GetCurrentTargetDistance()} pathPending: {navMesh.pathPending}");
 
         float finalDamage = attackPower * rangedDamageMultiplier;
 

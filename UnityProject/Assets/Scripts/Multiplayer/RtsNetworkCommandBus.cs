@@ -175,7 +175,11 @@ public class RtsNetworkCommandBus : MonoBehaviour
 
     // ── Movimiento ────────────────────────────────────────────────────────────
 
-    public bool RequestMoveSelectedUnits(List<GameObject> selectedUnits, Vector3 destination, ResourceNode resourceTarget)
+    public bool RequestMoveSelectedUnits(
+        List<GameObject> selectedUnits,
+        Vector3 destination,
+        ResourceNode resourceTarget,
+        Humano attackTarget = null)
     {
         if (!IsMultiplayerActive) return false;
 
@@ -197,6 +201,7 @@ public class RtsNetworkCommandBus : MonoBehaviour
         if (unitIds.Count == 0) return true;
 
         int resourceId = 0;
+        int attackTargetId = 0;
         if (resourceTarget != null)
         {
             RtsNetworkEntity resourceEntity = resourceTarget.GetComponent<RtsNetworkEntity>();
@@ -204,13 +209,20 @@ public class RtsNetworkCommandBus : MonoBehaviour
             resourceId = resourceEntity != null ? resourceEntity.EntityId : 0;
         }
 
+        if (attackTarget != null)
+        {
+            RtsNetworkEntity targetEntity = attackTarget.GetComponent<RtsNetworkEntity>();
+            if (targetEntity == null) targetEntity = attackTarget.GetComponentInParent<RtsNetworkEntity>();
+            attackTargetId = targetEntity != null ? targetEntity.EntityId : 0;
+        }
+
         if (IsServer)
         {
-            HandleMoveRequest(AuthSession.UserId, unitIds.ToArray(), destination, resourceId);
+            HandleMoveRequest(AuthSession.UserId, unitIds.ToArray(), destination, resourceId, attackTargetId);
             return true;
         }
 
-        SendMoveRequest(unitIds, destination, resourceId);
+        SendMoveRequest(unitIds, destination, resourceId, attackTargetId);
         return true;
     }
 
@@ -247,7 +259,7 @@ public class RtsNetworkCommandBus : MonoBehaviour
         return true;
     }
 
-    void SendMoveRequest(List<int> unitIds, Vector3 destination, int resourceId)
+    void SendMoveRequest(List<int> unitIds, Vector3 destination, int resourceId, int attackTargetId)
     {
         FastBufferWriter writer = new FastBufferWriter(1024, Allocator.Temp);
         try
@@ -256,6 +268,7 @@ public class RtsNetworkCommandBus : MonoBehaviour
             WriteIntArray(ref writer, unitIds);
             WriteVector3(ref writer, destination);
             writer.WriteValueSafe(resourceId);
+            writer.WriteValueSafe(attackTargetId);
             NetworkManager.Singleton.CustomMessagingManager.SendNamedMessage(
                 MoveRequestMessage,
                 NetworkManager.ServerClientId,
@@ -272,13 +285,16 @@ public class RtsNetworkCommandBus : MonoBehaviour
         int[] unitIds = ReadIntArray(ref reader);
         Vector3 destination = ReadVector3(ref reader);
         reader.ReadValueSafe(out int resourceId);
-        HandleMoveRequest(userId, unitIds, destination, resourceId);
+        reader.ReadValueSafe(out int attackTargetId);
+        HandleMoveRequest(userId, unitIds, destination, resourceId, attackTargetId);
     }
 
-    void HandleMoveRequest(int userId, int[] unitIds, Vector3 destination, int resourceId)
+    void HandleMoveRequest(int userId, int[] unitIds, Vector3 destination, int resourceId, int attackTargetId)
     {
         int ownerSlot = MultiplayerBootstrap.Instance.GetPlayerSlotByUserId(userId);
         if (ownerSlot < 0) return;
+
+        attackTargetId = GetAuthorizedAttackTargetId(attackTargetId, ownerSlot);
 
         List<int> authorizedUnitIds = new List<int>();
         foreach (int unitId in unitIds)
@@ -290,11 +306,31 @@ public class RtsNetworkCommandBus : MonoBehaviour
 
         if (authorizedUnitIds.Count == 0) return;
 
-        ApplyMoveOrder(authorizedUnitIds.ToArray(), destination, resourceId);
-        BroadcastMoveApply(authorizedUnitIds, destination, resourceId);
+        ApplyMoveOrder(authorizedUnitIds.ToArray(), destination, resourceId, attackTargetId);
+        BroadcastMoveApply(authorizedUnitIds, destination, resourceId, attackTargetId);
     }
 
-    void BroadcastMoveApply(List<int> unitIds, Vector3 destination, int resourceId)
+    int GetAuthorizedAttackTargetId(int attackTargetId, int attackerOwnerSlot)
+    {
+        if (attackTargetId == 0)
+        {
+            return 0;
+        }
+
+        if (!RtsEntityRegistry.TryGetEntity(attackTargetId, out RtsNetworkEntity targetEntity))
+        {
+            return 0;
+        }
+
+        if (targetEntity.Kind != RtsEntityKind.Unit || targetEntity.OwnerSlot == attackerOwnerSlot)
+        {
+            return 0;
+        }
+
+        return attackTargetId;
+    }
+
+    void BroadcastMoveApply(List<int> unitIds, Vector3 destination, int resourceId, int attackTargetId)
     {
         FastBufferWriter writer = new FastBufferWriter(1024, Allocator.Temp);
         try
@@ -302,6 +338,7 @@ public class RtsNetworkCommandBus : MonoBehaviour
             WriteIntArray(ref writer, unitIds);
             WriteVector3(ref writer, destination);
             writer.WriteValueSafe(resourceId);
+            writer.WriteValueSafe(attackTargetId);
             NetworkManager.Singleton.CustomMessagingManager.SendNamedMessageToAll(
                 MoveApplyMessage, writer, NetworkDelivery.ReliableSequenced);
         }
@@ -314,18 +351,22 @@ public class RtsNetworkCommandBus : MonoBehaviour
         int[] unitIds = ReadIntArray(ref reader);
         Vector3 destination = ReadVector3(ref reader);
         reader.ReadValueSafe(out int resourceId);
-        ApplyMoveOrder(unitIds, destination, resourceId);
+        reader.ReadValueSafe(out int attackTargetId);
+        ApplyMoveOrder(unitIds, destination, resourceId, attackTargetId);
     }
 
-    void ApplyMoveOrder(int[] unitIds, Vector3 destination, int resourceId)
+    void ApplyMoveOrder(int[] unitIds, Vector3 destination, int resourceId, int attackTargetId)
     {
         ResourceNode resource = null;
         if (resourceId != 0) RtsEntityRegistry.TryGetComponent(resourceId, out resource);
 
+        Humano attackTarget = null;
+        if (attackTargetId != 0) RtsEntityRegistry.TryGetComponent(attackTargetId, out attackTarget);
+
         foreach (int unitId in unitIds)
         {
             if (RtsEntityRegistry.TryGetComponent(unitId, out Humano unit))
-                unit.SetMoveTargetFromNetwork(destination, resource);
+                unit.SetMoveTargetFromNetwork(destination, resource, attackTarget);
         }
     }
 

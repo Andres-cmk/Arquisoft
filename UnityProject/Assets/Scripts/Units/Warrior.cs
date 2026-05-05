@@ -40,9 +40,10 @@ public abstract class Warrior : Humano
 
     public override void SetMoveTargetFromNetwork(Vector3 target, ResourceNode targetResource = null, Humano targetHuman = null)
     {
-        moveTarget = target;
         currentTarget = targetHuman != null ? targetHuman.gameObject : null;
-        resourceActionPending = targetResource != null;        
+        moveTarget = currentTarget != null ? currentTarget.transform.position : target;
+        resourceTarget = targetResource;
+        resourceActionPending = targetResource != null;
 
         if(navMesh == null)
         {
@@ -58,12 +59,14 @@ public abstract class Warrior : Humano
         }
         else if(targetHuman != null)
         {
+            resourceTarget = null;
+            resourceActionPending = false;
             RestartMovement();
-            navMesh.SetDestination(targetHuman.transform.position);
+            navMesh.SetDestination(moveTarget);
             hasMoveOrder = true;
             previousDistanceToTarget = -1f;
             stuckTimer = 0f;
-            Debug.Log($"Unidad moviendose a {moveTarget} {(targetHuman != null ? "para Atacar" : "")}.");
+            Debug.Log($"Unidad moviendose a {moveTarget} para atacar a {targetHuman.name}.");
 
         }
         else
@@ -80,33 +83,76 @@ public abstract class Warrior : Humano
     public void UpdateTargetFromNetWork()
     {
         if(currentTarget != null){
+            moveTarget = currentTarget.transform.position;
+            float distanceToTarget = GetCurrentTargetDistance();
 
-            float distanceToTarget = Vector3.Distance(transform.position, currentTarget.transform.position);
-
-            if(distanceToTarget > attackRange || !hasVisionLine(currentTarget.transform)){
+            if(distanceToTarget > GetEffectiveAttackRange() || !hasVisionLine(currentTarget.transform)){
                 RestartMovement();
-                navMesh.SetDestination(currentTarget.transform.position);
+                navMesh.SetDestination(moveTarget);
+                hasMoveOrder = true;
             }
             else{
                 StopMovement();
+                movement = Vector3.zero;
+                hasMoveOrder = false;
+                previousDistanceToTarget = -1f;
+                stuckTimer = 0f;
             }
         }
     }
 
 
-    public bool hasVisionLine(Transform currentTarget)
+    public bool hasVisionLine(Transform targetTransform)
     {
-        Vector3 origen = transform.position + Vector3.up * 1.5f;
-        Vector3 destino = currentTarget.position + Vector3.up * 1.5f;
-
-        Vector3 direccion = (destino - origen).normalized;
-        float distancia = Vector3.Distance(origen, destino);
-
-        if (Physics.Raycast(origen, direccion, out RaycastHit hit, distancia))
+        if (targetTransform == null)
         {
-            return hit.transform == currentTarget;
+            return false;
         }
-        return false;
+
+        Vector3 origen = transform.position + Vector3.up * 1.5f;
+        Vector3 destino = targetTransform.position + Vector3.up * 1.5f;
+        Vector3 toTarget = destino - origen;
+        float distancia = toTarget.magnitude;
+
+        if (distancia <= 0.01f)
+        {
+            return true;
+        }
+
+        Vector3 direccion = toTarget / distancia;
+        RaycastHit[] hits = Physics.RaycastAll(origen, direccion, distancia);
+        RaycastHit closestHit = default;
+        bool hasClosestHit = false;
+
+        foreach (RaycastHit hit in hits)
+        {
+            if (hit.collider == null || hit.collider.isTrigger)
+            {
+                continue;
+            }
+
+            Transform hitTransform = hit.collider.transform;
+            if (hitTransform == transform || hitTransform.IsChildOf(transform))
+            {
+                continue;
+            }
+
+            if (!hasClosestHit || hit.distance < closestHit.distance)
+            {
+                closestHit = hit;
+                hasClosestHit = true;
+            }
+        }
+
+        if (!hasClosestHit)
+        {
+            return true;
+        }
+
+        Transform closestTransform = closestHit.collider.transform;
+        return closestTransform == targetTransform
+            || closestTransform.IsChildOf(targetTransform)
+            || targetTransform.IsChildOf(closestTransform);
 
     }
 
@@ -121,16 +167,20 @@ public abstract class Warrior : Humano
             return;
         }
 
-        //float distanceToTarget = Vector3.Distance(transform.position, currentTarget.transform.position);
-        float distanceToTarget = navMesh.remainingDistance;
+        float distanceToTarget = GetCurrentTargetDistance();
 
         // Si el objetivo está fuera del rango, cancelar
-        if (distanceToTarget > attackRange + 2f)
+        if (distanceToTarget > GetEffectiveAttackRange())
         {
             return;
         }
 
-        if (distanceToTarget <= attackRange + 2f)
+        if (!hasVisionLine(currentTarget.transform))
+        {
+            return;
+        }
+
+        if (distanceToTarget <= GetEffectiveAttackRange())
         {
             if (Time.time >= lastAttackTime + attackCooldown)
             {
@@ -138,6 +188,21 @@ public abstract class Warrior : Humano
                 lastAttackTime = Time.time;
             }
         }
+    }
+
+    protected float GetCurrentTargetDistance()
+    {
+        if (currentTarget == null)
+        {
+            return float.MaxValue;
+        }
+
+        return Vector3.Distance(transform.position, currentTarget.transform.position);
+    }
+
+    protected float GetEffectiveAttackRange()
+    {
+        return attackRange + 2f;
     }
 
 

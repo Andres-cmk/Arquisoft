@@ -86,7 +86,7 @@ public class MovementController : MonoBehaviour
             {
                 Debug.Log($"<color=red>[ATAQUE]</color> Ataque a unidad enemiga: {objetivoPrioritario.name}");
 
-                Humano targetHuman = objetivoPrioritario.GetComponent<Humano>();
+                Humano targetHuman = GetHumanoFromSelectable(objetivoPrioritario);
 
                 if (targetHuman != null)
                 {
@@ -147,7 +147,11 @@ public class MovementController : MonoBehaviour
 
         if (RtsNetworkCommandBus.IsMultiplayerActive)
         {
-            bool handledByNetwork = RtsNetworkCommandBus.GetOrCreate().RequestMoveSelectedUnits(selectionSystem.selectedUnits, destino, resourceTarget);
+            bool handledByNetwork = RtsNetworkCommandBus.GetOrCreate().RequestMoveSelectedUnits(
+                selectionSystem.selectedUnits,
+                destino,
+                resourceTarget,
+                targetHuman);
             return handledByNetwork ? selectionSystem.selectedUnits.Count : 0;
         }
 
@@ -179,5 +183,25 @@ public class MovementController : MonoBehaviour
         }
 
         return movedCount;
+    }
+
+    private Humano GetHumanoFromSelectable(SelectableEntity selectable)
+    {
+        if (selectable == null)
+        {
+            return null;
+        }
+
+        Humano unit = selectable.GetComponent<Humano>();
+        if (unit == null)
+        {
+            unit = selectable.GetComponentInParent<Humano>();
+        }
+        if (unit == null)
+        {
+            unit = selectable.GetComponentInChildren<Humano>();
+        }
+
+        return unit;
     }
 }
