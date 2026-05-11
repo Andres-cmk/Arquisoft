@@ -9,6 +9,8 @@ from app.routers.auth import router as auth_router
 from app.routers.match import router as match_router
 from shared.cors import configure_cors
 
+from fastapi.middleware.httpsredirect import HTTPSRedirectMiddleware
+
 app = FastAPI()
 
 
@@ -18,6 +20,11 @@ configure_cors(app)
 app.include_router(auth_router)
 app.include_router(match_router)
 
+app.add_middleware(HTTPSRedirectMiddleware)
+
+@app.get("/")
+async def root():
+    return {"message": "Https funcionando :D!"}
 
 @app.get("/health")
 def health():

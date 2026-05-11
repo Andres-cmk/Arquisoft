@@ -17,4 +17,5 @@ services:
       AUTH_SECRET: ${AUTH_SECRET:-change-me-in-production}
       AUTH_GOOGLE_ID: ${AUTH_GOOGLE_ID}
       AUTH_GOOGLE_SECRET: ${AUTH_GOOGLE_SECRET}
-      PY_BACKEND_URL: ${PY_BACKEND_DOCKER_URL:-http://host.docker.internal:8000}
+      PY_BACKEND_URL: ${PY_BACKEND_DOCKER_URL:-https://host.docker.internal:8000}
+      NODE_TLS_REJECT_UNAUTHORIZED: "0" # Cambio para permitir certificados autofirmados en desarrollo

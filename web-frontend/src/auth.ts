@@ -2,7 +2,7 @@ import NextAuth from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
 import { authConfig } from "../auth.config";
 
-const PY_BACKEND_URL = process.env.PY_BACKEND_URL ?? "http://localhost:8000";
+const PY_BACKEND_URL = process.env.PY_BACKEND_URL ?? "https://localhost:8000";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   ...authConfig,

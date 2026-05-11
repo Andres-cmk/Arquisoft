@@ -13,7 +13,7 @@ using UnityEngine.Networking;
 public class ApiClient : MonoBehaviour
 {
     [Header("Support API")]
-    [SerializeField] string baseUrl = "http://127.0.0.1:8000";
+    [SerializeField] string baseUrl = "https://127.0.0.1:8000";
     [SerializeField] string sessionSummaryEndpoint = "/support/session-summary";
 
     [Header("Web Login")]

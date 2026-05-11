@@ -71,6 +71,7 @@ backend/dev.db
 backend/dev.db-journal
 backend/dev.db-shm
 backend/dev.db-wal
+backend/certs/*.pem
 
 # -----------------------------
 # Backend Python
