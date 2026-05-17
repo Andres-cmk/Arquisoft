@@ -220,6 +220,17 @@ public class ApiClient : MonoBehaviour
         return cleanBase + cleanEndpoint;
     }
 
+    void ConfigureLocalCertificate(UnityWebRequest request)
+    {
+        Uri uri;
+        if (Uri.TryCreate(baseUrl, UriKind.Absolute, out uri)
+            && uri.Scheme == Uri.UriSchemeHttps
+            && (uri.Host == "127.0.0.1" || uri.Host == "localhost"))
+        {
+            request.certificateHandler = new LocalhostCertificateHandler();
+        }
+    }
+
     string BuildWebLoginUrl(string callbackUrl, string state)
     {
         string separator = webLoginUrl.Contains("?") ? "&" : "?";
@@ -395,6 +406,7 @@ public class ApiClient : MonoBehaviour
         request.uploadHandler = new UploadHandlerRaw(Encoding.UTF8.GetBytes(json));
         request.downloadHandler = new DownloadHandlerBuffer();
         request.SetRequestHeader("Content-Type", "application/json");
+        ConfigureLocalCertificate(request);
         AuthSession.ApplyAuthorization(request);
         request.timeout = 10;
 
@@ -420,5 +432,13 @@ public class ApiClient : MonoBehaviour
         string responseText = request.downloadHandler != null ? request.downloadHandler.text : string.Empty;
         onSuccess?.Invoke(responseText);
         request.Dispose();
+    }
+
+    class LocalhostCertificateHandler : CertificateHandler
+    {
+        protected override bool ValidateCertificate(byte[] certificateData)
+        {
+            return true;
+        }
     }
 }

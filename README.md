@@ -34,12 +34,19 @@ Para multiplayer local, cada instancia de Unity recibe su propio token aunque el
 
 ## Puertos
 
-- Frontend: `http://localhost:3000`
-- Backend support: `http://localhost:8000`
-- Backend matchmaking: `http://localhost:8001`
-- PostgreSQL desde host: `localhost:5433`
-- RabbitMQ AMQP: `localhost:5672`
-- RabbitMQ UI: `http://localhost:15672` (`guest` / `guest`)
+Con el compose raiz segmentado, solo el proxy inverso publica puertos al host:
+
+- Web proxy: `http://localhost:3000`
+- Unity support proxy: `https://localhost:8000`
+- Unity matchmaking proxy: `https://localhost:8001`
+
+Los servicios internos quedan solo en la red privada de Docker:
+
+- `web-frontend:3000`
+- `support:8000`
+- `matchmaking:8001`
+- `db:5432`
+- `rabbitmq:5672`
 
 ## Google OAuth
 
@@ -88,13 +95,14 @@ AUTH_GOOGLE_ID=your-google-client-id.apps.googleusercontent.com
 AUTH_GOOGLE_SECRET=your-google-client-secret
 
 NEXTAUTH_URL=http://localhost:3000
-PY_BACKEND_URL=http://localhost:8000
+PY_BACKEND_URL=https://localhost:8000
 ```
 
 Notas:
 
 - `AUTH_GOOGLE_ID` debe ser igual a `backend/.env` -> `GOOGLE_CLIENT_ID`.
-- Si corres el frontend con Docker, `web-frontend/docker-compose.yml` usa `PY_BACKEND_DOCKER_URL` y por defecto apunta a `http://host.docker.internal:8000`, que es lo correcto para llamar al backend desde el contenedor web.
+- Si corres la arquitectura segmentada con el compose raiz, `PY_BACKEND_URL` se sobreescribe como `http://support:8000` para que NextAuth llame al servicio por la red privada de Docker.
+- Si corres solo `web-frontend/docker-compose.yml`, ese compose aislado usa `PY_BACKEND_DOCKER_URL` y por defecto apunta a `http://host.docker.internal:8000`.
 - Para generar secretos locales puedes usar PowerShell:
 
 ```powershell
@@ -103,18 +111,17 @@ Notas:
 
 ## Levantar Backend
 
-Desde la raiz del repo:
+Opcion recomendada: levantar toda la arquitectura segmentada desde la raiz del repo:
 
 ```powershell
-cd backend
 docker compose up --build -d
 ```
 
 Verifica:
 
 ```powershell
-Invoke-WebRequest -UseBasicParsing http://localhost:8000/health
-Invoke-WebRequest -UseBasicParsing http://localhost:8001/health
+curl.exe -k https://localhost:8000/health
+curl.exe -k https://localhost:8001/health
 ```
 
 Detener:
@@ -123,9 +130,25 @@ Detener:
 docker compose down
 ```
 
+El compose raiz crea dos redes Docker:
+
+- `public`: contiene el reverse proxy expuesto al host.
+- `private`: contiene frontend, support, matchmaking, PostgreSQL y RabbitMQ.
+
+El contenedor Nginx actua como tres proxies logicos: browser a frontend, Unity a support, y Unity a matchmaking. TLS termina en Nginx; dentro de Docker los servicios hablan HTTP.
+
+### Levantar solo Backend
+
+El compose en `backend/` se mantiene como apoyo de desarrollo si necesitas correr solamente servicios backend sin la segmentacion completa.
+
+```powershell
+cd backend
+docker compose up --build -d
+```
+
 ## Levantar Frontend
 
-Opcion recomendada con Docker:
+El frontend queda incluido en el compose raiz. Si necesitas correrlo aislado para desarrollo:
 
 ```powershell
 cd web-frontend
@@ -201,7 +224,7 @@ Authorization: Bearer <access_token>
 - `Error 401: invalid_client`: el Client ID/Secret de Google esta mal configurado o el redirect URI no coincide exactamente.
 - `Login incompleto`: Google autentico, pero NextAuth no pudo obtener token interno desde backend. Revisa que `support` este arriba y que `GOOGLE_CLIENT_ID` sea igual a `AUTH_GOOGLE_ID`.
 - El navegador abre `Dashboard` en vez de selector de cuenta: cierra la pestana vieja y vuelve a iniciar desde Unity. El flujo actual usa `/google-login` con `prompt=select_account` y `max_age=0`.
-- El contenedor web no alcanza al backend: usa Docker Compose actualizado; debe resolver `PY_BACKEND_DOCKER_URL` como `http://host.docker.internal:8000`.
+- El contenedor web no alcanza al backend: con el compose raiz debe resolver `PY_BACKEND_URL=http://support:8000`; con el compose aislado de `web-frontend/`, revisa `PY_BACKEND_DOCKER_URL`.
 - `support` no arranca: revisa que PostgreSQL este `healthy` y que exista `backend/support-service/config/serviceAccountKey.json`.
 
 ## Archivos que no se deben subir

@@ -25,11 +25,9 @@ services:
   support:
     build: .
     working_dir: /app_dir/support-service
-    command: python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --ssl-keyfile /certs/key.pem --ssl-certfile /certs/cert.pem
+    command: python -m uvicorn app.main:app --host 0.0.0.0 --port 8000
     ports:
       - "8000:8000"
-    volumes:
-      - ./certs:/certs:ro
     depends_on:
       db:
         condition: service_healthy
@@ -37,6 +35,7 @@ services:
       - .env
     environment:
       PYTHONPATH: /app_dir:/app_dir/support-service
+      ENABLE_HTTPS_REDIRECT: "false"
 
   matchmaking:
     build: .

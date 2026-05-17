@@ -7,7 +7,7 @@ using UnityEngine.Networking;
 public class MatchmakingClient : MonoBehaviour
 {
     [Header("Matchmaking API")]
-    [SerializeField] string baseUrl = "http://127.0.0.1:8001";
+    [SerializeField] string baseUrl = "https://127.0.0.1:8001";
 
     public static MatchmakingClient Instance { get; private set; }
 
@@ -160,9 +160,21 @@ public class MatchmakingClient : MonoBehaviour
         return cleanBase + cleanEndpoint;
     }
 
+    void ConfigureLocalCertificate(UnityWebRequest request)
+    {
+        Uri uri;
+        if (Uri.TryCreate(baseUrl, UriKind.Absolute, out uri)
+            && uri.Scheme == Uri.UriSchemeHttps
+            && (uri.Host == "127.0.0.1" || uri.Host == "localhost"))
+        {
+            request.certificateHandler = new LocalhostCertificateHandler();
+        }
+    }
+
     IEnumerator GetJsonCoroutine(string endpoint, Action<MatchResponse> onSuccess, Action<string> onError)
     {
         var request = UnityWebRequest.Get(BuildUrl(endpoint));
+        ConfigureLocalCertificate(request);
         AuthSession.ApplyAuthorization(request);
         request.timeout = 10;
         yield return request.SendWebRequest();
@@ -176,6 +188,7 @@ public class MatchmakingClient : MonoBehaviour
         request.uploadHandler = new UploadHandlerRaw(Encoding.UTF8.GetBytes(json));
         request.downloadHandler = new DownloadHandlerBuffer();
         request.SetRequestHeader("Content-Type", "application/json");
+        ConfigureLocalCertificate(request);
         AuthSession.ApplyAuthorization(request);
         request.timeout = 10;
         yield return request.SendWebRequest();
@@ -188,6 +201,7 @@ public class MatchmakingClient : MonoBehaviour
         Action<string> onError)
     {
         var request = UnityWebRequest.Get(BuildUrl("/matchmaking/queue/next"));
+        ConfigureLocalCertificate(request);
         AuthSession.ApplyAuthorization(request);
         request.timeout = 10;
         yield return request.SendWebRequest();
@@ -236,4 +250,12 @@ public class MatchmakingClient : MonoBehaviour
 
     [Serializable]
     class EmptyPayload { }
+
+    class LocalhostCertificateHandler : CertificateHandler
+    {
+        protected override bool ValidateCertificate(byte[] certificateData)
+        {
+            return true;
+        }
+    }
 }

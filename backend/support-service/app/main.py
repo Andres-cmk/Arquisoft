@@ -1,3 +1,4 @@
+import os
 import time
 
 from dotenv import load_dotenv
@@ -20,7 +21,8 @@ configure_cors(app)
 app.include_router(auth_router)
 app.include_router(match_router)
 
-app.add_middleware(HTTPSRedirectMiddleware)
+if os.getenv("ENABLE_HTTPS_REDIRECT", "false").lower() in {"1", "true", "yes"}:
+    app.add_middleware(HTTPSRedirectMiddleware)
 
 @app.get("/")
 async def root():

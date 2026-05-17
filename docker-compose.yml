@@ -1,0 +1,102 @@
+services:
+  reverse-proxy:
+    build:
+      context: ./nginx
+    depends_on:
+      web-frontend:
+        condition: service_started
+      support:
+        condition: service_started
+      matchmaking:
+        condition: service_started
+    ports:
+      - "3000:3000"
+      - "8000:8000"
+      - "8001:8001"
+    networks:
+      - public
+      - private
+
+  web-frontend:
+    build:
+      context: ./web-frontend
+      dockerfile: Dockerfile
+      target: runner
+      args:
+        NODE_VERSION: "20"
+    env_file:
+      - ./web-frontend/.env
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      HOSTNAME: 0.0.0.0
+      NEXTAUTH_URL: http://localhost:3000
+      PY_BACKEND_URL: http://support:8000
+    depends_on:
+      support:
+        condition: service_started
+    networks:
+      - private
+
+  db:
+    image: postgres:16
+    env_file:
+      - ./backend/.env
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - private
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - private
+
+  support:
+    build:
+      context: ./backend
+    working_dir: /app_dir/support-service
+    command: python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --proxy-headers --forwarded-allow-ips="*"
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file:
+      - ./backend/.env
+    environment:
+      PYTHONPATH: /app_dir:/app_dir/support-service
+      ENABLE_HTTPS_REDIRECT: "false"
+    networks:
+      - private
+
+  matchmaking:
+    build:
+      context: ./backend
+    working_dir: /app_dir/matchmaking-service
+    command: python -m uvicorn app.main:app --host 0.0.0.0 --port 8001 --proxy-headers --forwarded-allow-ips="*"
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    env_file:
+      - ./backend/.env
+    environment:
+      PYTHONPATH: /app_dir:/app_dir/matchmaking-service
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672/
+    networks:
+      - private
+
+networks:
+  public:
+  private:
+
+volumes:
+  postgres-data:
