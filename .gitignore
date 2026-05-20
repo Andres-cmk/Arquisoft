@@ -155,6 +155,7 @@ htmlcov/
 # Repo extras (local artifacts)
 # -----------------------------
 *.log
+_deps_pdf/
 .vsconfig
 UnityProject/.vs/
 UnityProject/.vsconfig
