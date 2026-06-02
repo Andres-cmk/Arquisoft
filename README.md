@@ -1,163 +1,236 @@
-# Prototype1 - Login con API (Windows)
+# RTS ArquiSoft
 
-Repositorio con cliente Unity y backend Node.js/Express + Prisma (SQLite).
+Proyecto RTS con cliente Unity, frontend web para login con Google y backend FastAPI para autenticacion, resumenes y matchmaking.
 
 ## Estructura
 
-- `My project/`: cliente Unity.
-- `backend/`: API de autenticacion.
+```text
+.
+|-- UnityProject/      # Juego en Unity
+|-- backend/           # FastAPI support + matchmaking + PostgreSQL + RabbitMQ
+|-- web-frontend/      # Next.js + NextAuth Google
+```
 
 ## Requisitos
 
-- Windows 10/11
-- PowerShell
-- Node.js 18+ (incluye `npm`)
-- Unity Hub + version de Unity del proyecto
+- Docker Desktop
+- Node.js 20+ y npm, solo si vas a correr el frontend sin Docker
+- Unity `6000.3.8f1`
+- Dos cuentas de Google si vas a probar multiplayer local con dos instancias
+- Credencial Firebase para guardar resumenes: `backend/support-service/config/serviceAccountKey.json`
 
-## Backend desde cero (solo clonando el repo)
+## Flujo de Login
 
-1. Clona el repositorio y entra a la carpeta `backend`:
+El login ya no se hace con usuario y clave dentro de Unity.
 
-```powershell
-cd "<ruta-del-repo>\backend"
-```
+1. Unity abre el navegador en `http://localhost:3000/unity-login` con `select_account=1`.
+2. La web usa NextAuth para iniciar sesion con Google.
+3. NextAuth envia el `id_token` de Google al backend `support` en `POST /auth/google`.
+4. El backend valida Google, crea el usuario si no existe y emite el `access_token` interno.
+5. La web redirige al callback local de Unity en `127.0.0.1`.
+6. Unity guarda el token en `AuthSession` y lo usa para matchmaking y resumenes.
 
-2. Instala dependencias:
+Para multiplayer local, cada instancia de Unity recibe su propio token aunque el navegador comparta cookies. El flujo fuerza el selector de cuenta de Google para que puedas elegir una cuenta diferente por instancia.
 
-```powershell
-cmd /c npm.cmd install
-```
+## Puertos
 
-3. Crea el archivo `.env` (si no existe):
+Con el compose raiz segmentado, solo el proxy inverso publica puertos al host:
 
-```powershell
-Copy-Item .env.example .env
-```
+- Web proxy: `http://localhost:3000`
+- Unity support proxy: `https://localhost:8000`
+- Unity matchmaking proxy: `https://localhost:8001`
 
-Si `Copy-Item` falla por no existir `.env.example`, crea `.env` manual con:
+Los servicios internos quedan solo en la red privada de Docker:
+
+- `web-frontend:3000`
+- `support:8000`
+- `matchmaking:8001`
+- `db:5432`
+- `rabbitmq:5672`
+
+## Google OAuth
+
+En Google Cloud Console crea un OAuth Client:
+
+- Application type: `Web application`
+- Authorized JavaScript origins:
+  - `http://localhost:3000`
+- Authorized redirect URIs:
+  - `http://localhost:3000/api/auth/callback/google`
+
+El `Client ID` debe ser el mismo en backend y frontend. El `Client Secret` solo va en el frontend.
+
+## Variables de Entorno
+
+No subas archivos `.env` ni credenciales reales al repositorio.
+
+### `backend/.env`
 
 ```env
-DATABASE_URL="file:./dev.db"
-JWT_SECRET="cambia_esto_por_un_secreto_largo"
-PORT=3000
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=admin
+POSTGRES_DB=arqui
+DATABASE_URL=postgresql://postgres:admin@db:5432/arqui
+
+FIREBASE_CREDENTIALS=config/serviceAccountKey.json
+AUTH_TOKEN_SECRET=replace-with-a-long-random-secret
+
+# Debe ser el mismo Client ID usado por NextAuth.
+GOOGLE_CLIENT_ID=your-google-client-id.apps.googleusercontent.com
+
+ALLOWED_ORIGINS=http://localhost:3000
 ```
 
-4. Sincroniza base de datos con Prisma:
+Notas:
+
+- `DATABASE_URL` usa host `db` porque el backend corre dentro de Docker Compose.
+- `FIREBASE_CREDENTIALS` es relativo al contenedor `support-service`, por eso el valor local esperado es `config/serviceAccountKey.json`.
+- `AUTH_TOKEN_SECRET` firma el token interno que Unity usa contra `matchmaking`.
+
+### `web-frontend/.env`
+
+```env
+AUTH_SECRET=replace-with-a-long-random-secret
+AUTH_GOOGLE_ID=your-google-client-id.apps.googleusercontent.com
+AUTH_GOOGLE_SECRET=your-google-client-secret
+
+NEXTAUTH_URL=http://localhost:3000
+PY_BACKEND_URL=https://localhost:8000
+```
+
+Notas:
+
+- `AUTH_GOOGLE_ID` debe ser igual a `backend/.env` -> `GOOGLE_CLIENT_ID`.
+- Si corres la arquitectura segmentada con el compose raiz, `PY_BACKEND_URL` se sobreescribe como `http://support:8000` para que NextAuth llame al servicio por la red privada de Docker.
+- Si corres solo `web-frontend/docker-compose.yml`, ese compose aislado usa `PY_BACKEND_DOCKER_URL` y por defecto apunta a `http://host.docker.internal:8000`.
+- Para generar secretos locales puedes usar PowerShell:
 
 ```powershell
-cmd /c npx prisma generate
-cmd /c npx prisma db push
+[Convert]::ToBase64String((1..32 | ForEach-Object { Get-Random -Maximum 256 }))
 ```
 
-5. Inicia el backend:
+## Levantar Backend
+
+Opcion recomendada: levantar toda la arquitectura segmentada desde la raiz del repo:
 
 ```powershell
-cmd /c npm.cmd run start
+docker compose up --build -d
 ```
 
-Debe quedar corriendo en `http://localhost:3000`.
-
-## Probar API rapido desde terminal
-
-Abre otra ventana de PowerShell (deja backend corriendo en la primera).
-
-### Registro
+Verifica:
 
 ```powershell
-Invoke-RestMethod -Method Post -Uri 'http://localhost:3000/auth/register' -ContentType 'application/json' -Body '{"username":"user_test_1","password":"123456"}'
+curl.exe -k https://localhost:8000/health
+curl.exe -k https://localhost:8001/health
 ```
 
-Si ese usuario ya existe, cambia `user_test_1` por otro nombre.
-
-### Login
+Detener:
 
 ```powershell
-$login = Invoke-RestMethod -Method Post -Uri 'http://localhost:3000/auth/login' -ContentType 'application/json' -Body '{"username":"user_test_1","password":"123456"}'
-$login.accessToken
+docker compose down
 ```
 
-Debe imprimir un JWT.
+El compose raiz crea dos redes Docker:
 
-### Validar token (`/auth/me`)
+- `public`: contiene el reverse proxy expuesto al host.
+- `private`: contiene frontend, support, matchmaking, PostgreSQL y RabbitMQ.
+
+El contenedor Nginx actua como tres proxies logicos: browser a frontend, Unity a support, y Unity a matchmaking. TLS termina en Nginx; dentro de Docker los servicios hablan HTTP.
+
+### Levantar solo Backend
+
+El compose en `backend/` se mantiene como apoyo de desarrollo si necesitas correr solamente servicios backend sin la segmentacion completa.
 
 ```powershell
-Invoke-RestMethod -Method Get -Uri 'http://localhost:3000/auth/me' -Headers @{ Authorization = "Bearer $($login.accessToken)" }
+cd backend
+docker compose up --build -d
 ```
 
-Esperado: `success: true` y `user` con `id` y `username`.
+## Levantar Frontend
 
-## Probar flujo en Unity
+El frontend queda incluido en el compose raiz. Si necesitas correrlo aislado para desarrollo:
 
-1. Abre el proyecto `My project` en Unity.
-2. Abre `LoginScene`.
-3. Selecciona el GameObject con `LoginController`.
-4. En Inspector, confirma que `loginButton` esta asignado.
-5. Presiona Play.
-6. Haz login con un usuario valido.
-7. Verifica que entra a `MainMenuScene`.
-8. Entra a `GameScene` y valida:
-   - Si hay token valido y `/auth/me` responde 200, permanece en `GameScene`.
-   - Si no hay token o es invalido, `GameSessionGuard` redirige a `LoginScene`.
+```powershell
+cd web-frontend
+docker compose up --build -d
+```
 
-## Validar seguridad minima
+Opcion local con npm:
 
-- Backend no devuelve `passwordHash` ni `salt` al cliente en respuestas de auth.
-- Cliente no persiste contrasena en sesion; solo usa `CurrentUser` y `AccessToken`.
-- Para produccion, usa `https://` en la API.
-- En desarrollo local se permite `http://localhost` por conveniencia.
+```powershell
+cd web-frontend
+npm ci
+npm run dev
+```
 
-## Resultado esperado del smoke test
+Abre:
 
-Flujo completo de backend:
+```text
+http://localhost:3000
+```
 
-- `register` -> `success: true`
-- `login` -> `success: true` + `accessToken`
-- `/auth/me` con Bearer token -> `success: true`
+## Abrir el Juego en Unity
 
-Ejemplo:
+1. Abre Unity Hub.
+2. Agrega y abre `UnityProject/`.
+3. Usa Unity `6000.3.8f1`.
+4. Asegurate de tener corriendo:
+   - Backend support en `localhost:8000`
+   - Backend matchmaking en `localhost:8001`
+   - Frontend en `localhost:3000`
+5. Abre la escena de menu/login y presiona `Ingresar`.
+6. El navegador debe mostrar selector de cuenta de Google.
+7. Al terminar, Unity debe mostrar `Login correcto (...)`.
 
-```json
-{"RegisteredSuccess":true,"LoginSuccess":true,"HasAccessToken":true,"MeSuccess":true}
+## Probar Multiplayer Local
+
+1. Corre backend y frontend.
+2. Abre el proyecto en Unity Editor.
+3. Haz `Build & Run` para una segunda instancia del juego.
+4. En el Editor, presiona `Ingresar` y elige la cuenta Google A.
+5. En el Build, presiona `Ingresar` y elige la cuenta Google B.
+6. Entra al menu multiplayer:
+   - Una instancia crea partida.
+   - La otra instancia busca/unirse a partida.
+
+Cada instancia conserva su propio `access_token` en memoria. Si ves el dashboard web en una pestana vieja, cierrala y vuelve a presionar `Ingresar` desde Unity.
+
+## Endpoints Principales
+
+Support (`localhost:8000`):
+
+- `GET /health`
+- `POST /auth/google`
+- `POST /support/session-summary`
+- `POST /match/session-summary` ruta legacy
+
+Matchmaking (`localhost:8001`):
+
+- `GET /health`
+- `POST /matchmaking/matches`
+- `GET /matchmaking/queue/next`
+- `POST /matchmaking/matches/{match_id}/join`
+- `GET /matchmaking/matches/{match_id}`
+- `POST /matchmaking/matches/{match_id}/leave`
+
+Los endpoints de matchmaking requieren:
+
+```http
+Authorization: Bearer <access_token>
 ```
 
 ## Troubleshooting
 
-- Error `npm.ps1 cannot be loaded because running scripts is disabled`:
-  usa `cmd /c npm.cmd ...` como en este README.
+- `Error 401: invalid_client`: el Client ID/Secret de Google esta mal configurado o el redirect URI no coincide exactamente.
+- `Login incompleto`: Google autentico, pero NextAuth no pudo obtener token interno desde backend. Revisa que `support` este arriba y que `GOOGLE_CLIENT_ID` sea igual a `AUTH_GOOGLE_ID`.
+- El navegador abre `Dashboard` en vez de selector de cuenta: cierra la pestana vieja y vuelve a iniciar desde Unity. El flujo actual usa `/google-login` con `prompt=select_account` y `max_age=0`.
+- El contenedor web no alcanza al backend: con el compose raiz debe resolver `PY_BACKEND_URL=http://support:8000`; con el compose aislado de `web-frontend/`, revisa `PY_BACKEND_DOCKER_URL`.
+- `support` no arranca: revisa que PostgreSQL este `healthy` y que exista `backend/support-service/config/serviceAccountKey.json`.
 
-- Error `The datasource.url property is required in your Prisma config file when using prisma db push`:
-  - confirma que existe `backend/.env`.
-  - confirma que `DATABASE_URL` esta definida.
-  - ejecuta `cmd /c npx prisma db push` desde `backend` (no desde la raiz del repo).
+## Archivos que no se deben subir
 
-- Error `Cannot find module 'dotenv/config'`:
-  - ejecuta `cmd /c npm.cmd install` en `backend`.
-  - si persiste: `cmd /c npm.cmd install dotenv --save`.
-
-- Error `Cannot find module '.prisma/client/default'`:
-  - genera Prisma Client: `cmd /c npx prisma generate`.
-  - luego sincroniza DB: `cmd /c npx prisma db push`.
-  - si persiste, reinstala limpio:
-    - `Remove-Item -Recurse -Force node_modules`
-    - `Remove-Item -Force package-lock.json`
-    - `cmd /c npm.cmd install`
-    - `cmd /c npx prisma generate`
-    - `cmd /c npx prisma db push`
-    - `cmd /c npm.cmd run start`
-
-- `Error interno del servidor` al registrar:
-  ejecuta de nuevo `cmd /c npx prisma db push`.
-
-- `Token invalido o expirado` en `/auth/me`:
-  vuelve a hacer login y usa el token nuevo.
-
-## Recuperacion rapida backend (copy/paste)
-
-Si vienes de varios errores de entorno, ejecuta esto dentro de `backend`:
-
-```powershell
-cmd /c npm.cmd install
-cmd /c npx prisma generate
-cmd /c npx prisma db push
-cmd /c npm.cmd run start
-```
+- `backend/.env`
+- `web-frontend/.env`
+- `backend/support-service/config/serviceAccountKey.json`
+- `UnityProject/Build&Run/`
+- `UnityProject/Library/`, `Temp/`, `Obj/`, `Build/`, `Builds/`, `Logs/`
